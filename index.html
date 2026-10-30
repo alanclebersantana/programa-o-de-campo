@@ -106,7 +106,7 @@ button.slot:active{background:var(--surface2)}
 .slot .dr em{font-style:normal;color:var(--amber)}
 .slot .tg{grid-column:3;grid-row:1/3;font-size:11px;font-weight:800;padding:5px 9px;border-radius:8px;background:var(--acc-soft);color:var(--acc);white-space:nowrap}
 .slot .tg.none{background:var(--amber-soft);color:var(--amber)}
-.slot .ob{grid-column:2/4;grid-row:3;font-size:11.5px;color:var(--muted);font-style:italic;margin-top:2px}
+.slot .ob{grid-column:2/4;grid-row:3;font-size:11.5px;font-weight:800;color:var(--ink);margin-top:2px}
 .empty{text-align:center;padding:26px 16px;color:var(--muted);font-size:13.5px;font-weight:600}
 .empty b{display:block;font-family:var(--hand);font-size:28px;color:var(--ink);margin-bottom:4px}
 
@@ -159,6 +159,11 @@ button.slot:active{background:var(--surface2)}
 .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:5px;max-height:188px;overflow:auto;padding:2px}
 .tgrid button{height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);font-size:13px;font-weight:800;color:var(--muted)}
 .tgrid button[aria-pressed="true"]{background:var(--acc);border-color:var(--acc);color:var(--acc-t)}
+.tgrid button.used{position:relative}
+.tgrid button.used::after{content:'';position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--amber)}
+.tleg{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);font-weight:600;margin-top:6px}
+.tleg i{width:7px;height:7px;border-radius:50%;background:var(--amber);display:inline-block}
+#aMsg{white-space:pre-line}
 .inp{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:var(--r3);padding:11px 12px;font-size:16px;font-weight:700}
 textarea.inp{resize:vertical;min-height:44px;font-weight:600;font-size:15px}
 .fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -232,7 +237,7 @@ textarea.inp{resize:vertical;min-height:44px;font-weight:600;font-size:15px}
 .pz td.dt span{font-size:9.5px;font-weight:800;letter-spacing:.1em;color:var(--ink2)}
 .pz td.h{width:50px;font-weight:800;color:var(--acc)}
 .pz td.l{font-weight:700}
-.pz td.l i{display:block;font-size:11px;font-weight:600;color:var(--muted)}
+.pz td.l i{display:block;font-size:11.5px;font-weight:800;font-style:normal;color:var(--ink);margin-top:1px}
 .pz td.d{font-weight:600}
 .pz td.d em{font-style:normal;color:var(--amber);font-size:12px}
 .pz td.t{font-weight:800;color:var(--acc);white-space:nowrap}
@@ -340,6 +345,7 @@ textarea.inp{resize:vertical;min-height:44px;font-weight:600;font-size:15px}
 
   <div class="lab">Território <span id="eTerrTxt">opcional · pode marcar mais de um</span></div>
   <div class="tgrid" id="eTerr"></div>
+  <div class="tleg hide" id="eTerrLeg"><i></i>já está em outra saída no mesmo mês</div>
 
   <div class="lab">Grupos <span>opcional · pode marcar mais de um</span></div>
   <div class="pk" id="eGrp"></div>
@@ -395,7 +401,7 @@ textarea.inp{resize:vertical;min-height:44px;font-weight:600;font-size:15px}
   <div class="grab"></div>
   <div class="mh"><h2>Imagem para o grupo</h2><button class="x" data-close aria-label="Fechar"><svg class="i" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
   <div class="lab">Páginas <span id="iInfo"></span></div>
-  <div class="seg" id="iPg"><button data-v="1" aria-pressed="true">1 página</button><button data-v="2" aria-pressed="false">2 páginas</button></div>
+  <div class="seg" id="iPg"><button data-v="1" aria-pressed="true">1 página</button><button data-v="2" aria-pressed="false">2 páginas</button><button data-v="w" aria-pressed="false">Por semana</button></div>
   <div class="lab">Tema</div>
   <div class="seg" id="iTh"><button data-v="light" aria-pressed="true">Claro</button><button data-v="dark" aria-pressed="false">Escuro</button></div>
   <div class="lab">Prévia</div>
@@ -709,7 +715,7 @@ function openEdit(id,dates){
   drawECal(); drawTimes(); drawTerr(); pE.loc.reset(); pE.dir.reset(); pE.grp.reset();
   openM('mEdit'); $('mEdit').querySelector('.box').scrollTop=0;
 }
-function drawECal(){ $('eCalLabel').textContent=cap(monthName(E.cy,E.cm)); $('eCal').innerHTML=calHTML(E.cy,E.cm,{sel:E.dates,wdClick:!E.id});
+function drawECal(){ $('eCalLabel').textContent=cap(monthName(E.cy,E.cm)); $('eCal').innerHTML=calHTML(E.cy,E.cm,{sel:E.dates,wdClick:!E.id}); if($('eTerr').children.length) drawTerr();
   const d=[...E.dates].sort(); $('eDatesTxt').textContent=!d.length?'nenhuma selecionada':d.length===1?fmtLong(d[0]):d.length+' datas: '+d.map(s=>{const t=pd(s);return pad(t.getDate())+'/'+pad(t.getMonth()+1);}).join(', '); }
 function fmtLong(s){ const t=pd(s); return WDL[t.getDay()]+', '+pad(t.getDate())+'/'+pad(t.getMonth()+1)+'/'+t.getFullYear(); }
 $('eCalPrev').onclick=()=>{ E.cm--; if(E.cm<0){E.cm=11;E.cy--;} drawECal(); };
@@ -725,14 +731,23 @@ function drawTimes(){ const freq={}; S.it.forEach(x=>{ if(x.time) freq[x.time]=(
   show('eTimes',t.length>0); }
 $('eTimes').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; E.time=b.dataset.v; $('eTime').value=E.time; drawTimes(); });
 $('eTime').addEventListener('input',()=>{ E.time=$('eTime').value; drawTimes(); });
-function drawTerr(){ const n=Math.max(1,Math.min(500,+S.cfg.nTerr||58)); let h=''; for(let i=1;i<=n;i++) h+=`<button type="button" data-t="${i}" aria-pressed="${E.terr.has(i)}">${pad(i)}</button>`;
-  $('eTerr').innerHTML=h; $('eTerrTxt').textContent=E.terr.size?terrTxt([...E.terr]):'opcional · pode marcar mais de um'; }
+/* territórios já marcados em outras saídas dos mesmos meses das datas escolhidas */
+function terrMonths(){ const d=[...E.dates]; return new Set(d.length?d.map(x=>x.slice(0,7)):[E.cy+'-'+pad(E.cm+1)]); }
+function terrUses(t){ const ms=terrMonths(); return S.it.filter(x=>x.id!==E.id&&ms.has(x.date.slice(0,7))&&arr(x.terr).map(Number).includes(t)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)); }
+function drawTerr(){ const n=Math.max(1,Math.min(500,+S.cfg.nTerr||58)); let h='', any=false;
+  for(let i=1;i<=n;i++){ const u=terrUses(i); if(u.length) any=true;
+    h+=`<button type="button" data-t="${i}" aria-pressed="${E.terr.has(i)}"${u.length?` class="used" title="Já em ${u.map(x=>pd(x.date).getDate()+'/'+(pd(x.date).getMonth()+1)).join(', ')}"`:''}>${pad(i)}</button>`; }
+  $('eTerr').innerHTML=h; show('eTerrLeg',any); $('eTerrTxt').textContent=E.terr.size?terrTxt([...E.terr]):'opcional · pode marcar mais de um'; }
 $('eTerr').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; const t=+b.dataset.t; E.terr.has(t)?E.terr.delete(t):E.terr.add(t); b.setAttribute('aria-pressed',String(E.terr.has(t))); $('eTerrTxt').textContent=E.terr.size?terrTxt([...E.terr]):'opcional · pode marcar mais de um'; });
 $('eObs').addEventListener('input',()=>{ E.obs=$('eObs').value; });
-$('eSave').onclick=()=>{
+function fmtUse(x){ const t=pd(x.date); return `• ${WD[t.getDay()]} ${pad(t.getDate())}/${pad(t.getMonth()+1)} · ${x.time||'—'} · ${x.dir||'dirigente a definir'}`; }
+$('eSave').onclick=async()=>{
   E.time=$('eTime').value; E.obs=$('eObs').value.trim();
   if(!E.dates.size){ toast('Escolha pelo menos uma data'); return; }
   if(!E.time){ toast('Informe o horário'); $('eTime').focus(); return; }
+  const parts=[]; [...E.terr].sort((a,b)=>a-b).forEach(t=>{ const u=terrUses(t); if(u.length){ const L=u.slice(0,6).map(fmtUse); if(u.length>6) L.push(`• e mais ${u.length-6}`); parts.push(`Território ${pad(t)} já está em:\n${L.join('\n')}`); } });
+  if(!E.id&&E.dates.size>1&&E.terr.size) parts.push(`${E.terr.size>1?'Os territórios '+[...E.terr].sort((a,b)=>a-b).map(pad).join(', ')+' vão':'O território '+pad([...E.terr][0])+' vai'} se repetir nas ${E.dates.size} datas marcadas.`);
+  if(parts.length&&await ask(parts.join('\n\n')+'\n\nQuer salvar mesmo assim?',[['Salvar mesmo assim','primary'],['Voltar e trocar','']])!==0) return;
   const data={time:E.time,loc:E.loc,dir:E.dir,terr:[...E.terr].sort((a,b)=>a-b),grp:E.grp.slice().sort(byName),obs:E.obs};
   if(E.id){ putItem(Object.assign({id:E.id,date:[...E.dates][0]},data)); toast('Saída atualizada'); }
   else { putItems([...E.dates].map(d=>Object.assign({id:uid(),date:d},data))); toast(E.dates.size>1?E.dates.size+' saídas incluídas':'Saída incluída'); }
@@ -899,11 +914,20 @@ function splitPages(days,n){ if(n<2||days.length<2) return [days];
   const w=days.map(([,it])=>it.length+it.filter(x=>x.obs).length*.5), tot=w.reduce((a,b)=>a+b,0); let best=1,bs=1e9,acc=0;
   for(let i=1;i<days.length;i++){ acc+=w[i-1]; const sc=Math.abs(acc-tot/2)+(weekOf(days[i][0])!==weekOf(days[i-1][0])?0:2.5); if(sc<bs){ bs=sc; best=i; } }
   return [days.slice(0,best),days.slice(best)]; }
-function pageHTML(days,pi,pn){
+/* uma página por semana (domingo a sábado); pedaço de semana com menos de 4 dias no começo/fim do mês vai junto com a vizinha */
+function splitWeeks(days){ const n=dim(VY,VM), f=new Date(VY,VM,1).getDay(), span=w=>[Math.max(1,7*w-f+1),Math.min(n,7*w-f+7)], g=[];
+  days.forEach(d=>{ const w=weekOf(d[0]), last=g[g.length-1]; if(last&&last.w===w) last.days.push(d); else { const [a,b]=span(w); g.push({w,days:[d],a,b}); } });
+  if(g.length>1&&g[0].b-g[0].a+1<4){ g[1].days=g[0].days.concat(g[1].days); g[1].a=g[0].a; g.shift(); }
+  if(g.length>1){ const L=g[g.length-1]; if(L.b-L.a+1<4){ const P=g[g.length-2]; P.days=P.days.concat(L.days); P.b=L.b; g.pop(); } }
+  while(g.length>4){ // no máximo 4 páginas: junta a semana incompleta mais curta das pontas com a vizinha
+    const s0=g[0].b-g[0].a+1, sl=g[g.length-1].b-g[g.length-1].a+1; if(s0>=7&&sl>=7) break;
+    if(sl<=s0||s0>=7){ const L=g.pop(), P=g[g.length-1]; P.days=P.days.concat(L.days); P.b=L.b; } else { const F=g.shift(); g[0].days=F.days.concat(g[0].days); g[0].a=F.a; } }
+  return g; }
+function pageHTML(days,pi,pn,ra,rb){
   const useG=days.some(([,it])=>it.some(x=>arr(x.grp).length)), useT=days.some(([,it])=>it.some(x=>arr(x.terr).length));
   const cg=(S.cfg.cong||'').trim(), ct=(S.cfg.city||'').trim();
   const eb=esc(cg&&ct&&cg.toLowerCase().includes(ct.toLowerCase())?cg:[cg,ct].filter(Boolean).join(' · '))||'Campo';
-  const a=pd(days[0][0]).getDate(), b=pd(days[days.length-1][0]).getDate();
+  const a=ra||pd(days[0][0]).getDate(), b=rb||pd(days[days.length-1][0]).getDate();
   const ncol=4+(useT?1:0)+(useG?1:0); let rows='', prevW=null;
   days.forEach(([ds,it])=>{ const t=pd(ds), wk=weekOf(ds);
     rows+=`<tbody class="sp${prevW!==null&&wk!==prevW?' w':''}"><tr><td colspan="${ncol}"></td></tr></tbody>`; prevW=wk;
@@ -916,17 +940,18 @@ function needH2C(){ if(window.html2canvas) return Promise.resolve(); return new 
 async function buildImg(){
   const seq=++imgSeq; imgFiles=[]; $('iShare').disabled=$('iDown').disabled=true;
   $('iPrev').innerHTML='<p>gerando a imagem…</p>';
-  const days=monthDays(), pages=splitPages(days,P.img.pages==='2'?2:1), stage=$('stage');
+  const days=monthDays(), stage=$('stage');
+  const pages=P.img.pages==='w'?splitWeeks(days):splitPages(days,P.img.pages==='2'?2:1).map(d=>({days:d}));
   try{
     await needH2C(); if(document.fonts){ await Promise.all(["700 30px Caveat","800 13px Manrope","700 13px Manrope","600 13px Manrope"].map(f=>document.fonts.load(f))).catch(()=>{}); await document.fonts.ready; }
     const out=[];
     for(let i=0;i<pages.length;i++){
-      stage.innerHTML=pageHTML(pages[i],i,pages.length); const el=stage.firstElementChild;
+      stage.innerHTML=pageHTML(pages[i].days,i,pages.length,pages[i].a,pages[i].b); const el=stage.firstElementChild;
       const c=await html2canvas(el,{scale:2,backgroundColor:getComputedStyle(el).backgroundColor,logging:false,windowWidth:el.scrollWidth+40});
       const blob=await new Promise(r=>c.toBlob(r,'image/png')); if(seq!==imgSeq) return;
       out.push(new File([blob],'programacao-campo-'+VY+'-'+pad(VM+1)+(pages.length>1?'-p'+(i+1):'')+'.png',{type:'image/png'})); }
     imgFiles=out; $('iPrev').innerHTML=out.map((f,i)=>`<img alt="Página ${i+1}" src="${URL.createObjectURL(f)}">`).join('');
-    $('iShareTxt').textContent=out.length>1?'Compartilhar as 2 imagens':'Compartilhar imagem';
+    $('iShareTxt').textContent=out.length>1?`Compartilhar as ${out.length} imagens`:'Compartilhar imagem';
     $('iShare').disabled=$('iDown').disabled=false;
   }catch(e){ if(seq===imgSeq) $('iPrev').innerHTML='<p>Não foi possível gerar a imagem. Verifique a internet (na primeira vez o gerador de imagem precisa ser baixado) e tente de novo.</p>'; }
   finally{ if(seq===imgSeq) stage.innerHTML=''; }
@@ -944,7 +969,7 @@ $('iShare').onclick=async()=>{ if(!imgFiles.length) return;
 $('iText').onclick=async()=>{
   let t=`*Programação de Campo — ${cap(monthName(VY,VM))}*\n${S.cfg.cong?'_'+S.cfg.cong+'_\n':''}`;
   monthDays().forEach(([d,it])=>{ const dt=pd(d); t+=`\n*${WDL[dt.getDay()]}, ${pad(dt.getDate())}/${pad(dt.getMonth()+1)}*\n`;
-    it.forEach(x=>{ const det=[x.dir||'dirigente a definir',terrTxt(x.terr),grpTxt(x.grp)].filter(Boolean).join(' · '); t+=`• ${x.time} — ${x.loc||'local a definir'} — ${det}${x.obs?` _(${x.obs})_`:''}\n`; }); });
+    it.forEach(x=>{ const det=[x.dir||'dirigente a definir',terrTxt(x.terr),grpTxt(x.grp)].filter(Boolean).join(' · '); t+=`• ${x.time} — ${x.loc||'local a definir'} — ${det}${x.obs?` *(${x.obs})*`:''}\n`; }); });
   try{ await navigator.clipboard.writeText(t.trim()); toast('Texto copiado — cole no WhatsApp'); }
   catch(e){ const ta=document.createElement('textarea'); ta.value=t.trim(); document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); toast('Texto copiado — cole no WhatsApp'); }catch(_){ toast('Não foi possível copiar'); } ta.remove(); } };
 
