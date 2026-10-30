@@ -299,6 +299,7 @@ textarea.inp{resize:vertical;min-height:44px;font-weight:600;font-size:15px}
   <div class="card">
     <h3>Calendário <span id="calHint">toque num dia para incluir uma saída</span></h3>
     <div class="cal" id="cal"></div>
+    <button class="btn wide" id="btnRep" style="margin-top:12px;padding:11px;font-size:13.5px"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M10 15h6M13 12l3 3-3 3"/></svg>Repetir este mês nos próximos meses</button>
   </div>
 
   <div id="list"></div>
@@ -372,6 +373,21 @@ textarea.inp{resize:vertical;min-height:44px;font-weight:600;font-size:15px}
   <div class="lab">Dirigente <span>opcional, se for sempre o mesmo</span></div>
   <div class="pk" id="fDir"></div>
   <div class="mfoot"><button class="btn wide" id="fAdd"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Adicionar saída fixa</button></div>
+</div></section>
+
+<!-- ---------- repetir nos próximos meses ---------- -->
+<section class="modal" id="mRep"><div class="box">
+  <div class="grab"></div>
+  <div class="mh"><h2>Repetir nos próximos meses</h2><button class="x" data-close aria-label="Fechar"><svg class="i" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+  <p class="lead">Copia as saídas de <b id="repFrom"></b> para os meses seguintes, mantendo horário, local, grupos e dirigente de cada dia da semana.</p>
+  <div class="lab">Dias da semana <span>nº de saídas no mês</span></div>
+  <div class="pk" id="repWd"></div>
+  <div class="lab">Meses <span id="repTo"></span></div>
+  <div class="seg" id="repN"><button data-v="1">Próximo</button><button data-v="2">2 meses</button><button data-v="3">3 meses</button><button data-v="6">6 meses</button></div>
+  <div class="lab">Copiar também</div>
+  <div class="pk" id="repOpt"><button type="button" data-o="dir">Dirigentes</button><button type="button" data-o="terr">Territórios</button><button type="button" data-o="obs">Observações</button></div>
+  <p class="note" style="text-align:left;margin-top:10px">A 1ª segunda vai para a 1ª segunda, a 2ª para a 2ª, e assim por diante. Se o mês de destino tiver uma 5ª semana que este mês não tem, ela repete a 1ª. Dias que já têm a mesma saída (mesmo horário e local) não são duplicados.</p>
+  <div class="mfoot"><p class="acc" id="repSum" style="margin:0;text-align:center"></p><button class="btn primary wide" id="repGo">Repetir</button></div>
 </div></section>
 
 <!-- ---------- imagem ---------- -->
@@ -756,6 +772,37 @@ async function applyFix(){
   if(add.length) putItems(add); if(MS.includes('mFix')) closeM();
   toast(add.length?`${add.length} ${add.length>1?'saídas incluídas':'saída incluída'}${skip?` · ${skip} já existia${skip>1?'m':''}`:''}`:'Nada a incluir: o mês já tem essas saídas'); }
 $('fApply').onclick=applyFix;
+
+/* ---------- repetir o mês nos próximos meses ---------- */
+let REP={wds:new Set(),n:3,dir:true,terr:false,obs:true};
+const occOf=ds=>Math.floor((pd(ds).getDate()-1)/7);   // 0 = 1ª semana daquele dia da semana no mês
+function repPlan(){
+  const pre=iso(VY,VM,1).slice(0,7), src={}, td=today(), add=[]; let skip=0;
+  S.it.filter(x=>x.date.startsWith(pre)).forEach(x=>{ const k=pd(x.date).getDay()+'|'+occOf(x.date); (src[k]=src[k]||[]).push(x); });
+  for(let i=1;i<=REP.n;i++){ const y=VY+Math.floor((VM+i)/12), m=(VM+i)%12, n=dim(y,m);
+    for(let d=1;d<=n;d++){ const ds=iso(y,m,d); if(ds<td) continue; const wd=new Date(y,m,d).getDay(); if(!REP.wds.has(wd)) continue;
+      const o=occOf(ds), base=src[wd+'|'+o]||(o===4?src[wd+'|0']:null); if(!base) continue;
+      base.forEach(x=>{ if(S.it.some(z=>z.date===ds&&z.time===x.time&&(z.loc||'')===(x.loc||''))||add.some(z=>z.date===ds&&z.time===x.time&&z.loc===(x.loc||''))){ skip++; return; }
+        add.push({id:uid(),date:ds,time:x.time,loc:x.loc||'',dir:REP.dir?(x.dir||''):'',terr:REP.terr?arr(x.terr).slice():[],grp:arr(x.grp).slice(),obs:REP.obs?(x.obs||''):''}); }); } }
+  return {add,skip}; }
+function drawRep(){
+  const pre=iso(VY,VM,1).slice(0,7), cnt={}; S.it.filter(x=>x.date.startsWith(pre)).forEach(x=>{ const w=pd(x.date).getDay(); cnt[w]=(cnt[w]||0)+1; });
+  $('repFrom').textContent=monthName(VY,VM);
+  $('repWd').innerHTML=[1,2,3,4,5,6,0].map(i=>`<button type="button" data-wd="${i}" aria-pressed="${REP.wds.has(i)}"${cnt[i]?'':' disabled style="opacity:.4"'}>${WDS[i][0]+WDS[i].slice(1).toLowerCase()}${cnt[i]?` · ${cnt[i]}`:''}</button>`).join('');
+  markSeg($('repN'),String(REP.n));
+  const y2=VY+Math.floor((VM+REP.n)/12), m2=(VM+REP.n)%12, y1=VY+Math.floor((VM+1)/12), m1=(VM+1)%12;
+  $('repTo').textContent=REP.n===1?monthName(y1,m1):`${MES[m1]}${y1!==y2?' de '+y1:''} a ${monthName(y2,m2)}`;
+  [...$('repOpt').children].forEach(b=>b.setAttribute('aria-pressed',String(!!REP[b.dataset.o])));
+  const {add,skip}=repPlan();
+  $('repSum').textContent=!REP.wds.size?'Escolha pelo menos um dia da semana':add.length?`Vai incluir ${add.length} ${add.length>1?'saídas':'saída'}${skip?` · ${skip} já ${skip>1?'existem':'existe'}`:''}`:(skip?'Esses dias já têm essas saídas':'Nada para copiar');
+  $('repGo').disabled=!add.length; }
+$('btnRep').onclick=()=>{ const pre=iso(VY,VM,1).slice(0,7), its=S.it.filter(x=>x.date.startsWith(pre)); if(!its.length){ toast('Este mês ainda não tem saídas para repetir'); return; }
+  REP.wds=new Set(its.map(x=>pd(x.date).getDay())); drawRep(); openM('mRep'); $('mRep').querySelector('.box').scrollTop=0; };
+$('repWd').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b||b.disabled) return; const w=+b.dataset.wd; REP.wds.has(w)?REP.wds.delete(w):REP.wds.add(w); drawRep(); });
+$('repN').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; REP.n=+b.dataset.v; drawRep(); });
+$('repOpt').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; REP[b.dataset.o]=!REP[b.dataset.o]; drawRep(); });
+$('repGo').onclick=async()=>{ const {add}=repPlan(); if(!add.length) return; $('repGo').disabled=true;
+  await putItems(add); closeM(); toast(`${add.length} ${add.length>1?'saídas incluídas':'saída incluída'} até ${monthName(VY+Math.floor((VM+REP.n)/12),(VM+REP.n)%12)}`); };
 
 /* ---------- ajustes ---------- */
 function cfgList(el,list){ el.innerHTML=S[list].map((n,i)=>`<span class="nm"><button type="button" data-ed="${i}" title="Editar">${esc(n)}</button><button type="button" class="del" data-i="${i}" aria-label="Remover ${esc(n)}">${ICON.x}</button></span>`).join('')+`<div class="addrow" style="flex-basis:100%;margin-top:4px"><input placeholder="Incluir…" enterkeyhint="done"><button type="button" class="btn primary sm" data-ok="1">Incluir</button></div>`;
