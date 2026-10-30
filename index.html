@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B4A34">
+<title>Programação de Campo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+/* Mesmo visual do app Nosso Território (cores, fontes, cartões de dia e linhas de saída). */
+:root,.th-light{
+  --bg:#F1F4F2; --surface:#FFFFFF; --surface2:#F7F9F8; --line:#E3E8E5; --line2:#D3DAD6;
+  --text:#0F1613; --muted:#6E7D76; --faint:#9AA8A1;
+  --acc:#0E7C5A; --acc-t:#FFFFFF; --acc-soft:#DFF1E9;
+  --red:#D9534A; --red-soft:#FBE6E4; --amber:#D08A16; --amber-soft:#FBF0DA;
+  --ink:#0B4A34; --ink2:#3E6B57; --glass:rgba(255,255,255,.86);
+  --sh:0 1px 2px rgba(15,22,19,.06), 0 10px 24px -16px rgba(15,22,19,.5);
+  --r:20px; --r2:14px; --r3:10px;
+  --font:Manrope,system-ui,-apple-system,sans-serif; --hand:Caveat,"Comic Sans MS",cursive;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0D1311; --surface:#151D1A; --surface2:#1B2521; --line:#243029; --line2:#2E3B34;
+  --text:#E7EFEA; --muted:#93A69C; --faint:#6C7F76;
+  --acc:#2FD69B; --acc-t:#06221A; --acc-soft:#123328;
+  --red:#F2685E; --red-soft:#3A1F1D; --amber:#E5A93A; --amber-soft:#3A2E15;
+  --ink:#5FE3AC; --ink2:#8FB3A4; --glass:rgba(21,29,26,.88);
+  --sh:0 1px 2px rgba(0,0,0,.4), 0 12px 28px -20px rgba(0,0,0,.9); color-scheme:dark }}
+:root[data-theme="dark"],.th-dark{
+  --bg:#0D1311; --surface:#151D1A; --surface2:#1B2521; --line:#243029; --line2:#2E3B34;
+  --text:#E7EFEA; --muted:#93A69C; --faint:#6C7F76;
+  --acc:#2FD69B; --acc-t:#06221A; --acc-soft:#123328;
+  --red:#F2685E; --red-soft:#3A1F1D; --amber:#E5A93A; --amber-soft:#3A2E15;
+  --ink:#5FE3AC; --ink2:#8FB3A4; --glass:rgba(21,29,26,.88);
+  --sh:0 1px 2px rgba(0,0,0,.4), 0 12px 28px -20px rgba(0,0,0,.9); color-scheme:dark }
+.th-light{color-scheme:light}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.45;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+body.lock{overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{border:none;background:none;cursor:pointer;padding:0}
+button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.hide{display:none!important}
+svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ---------- topo ---------- */
+.top{position:sticky;top:0;z-index:30;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px;background:var(--bg);box-shadow:0 8px 10px -8px var(--bg)}
+.top .row{display:flex;align-items:center;gap:8px;max-width:760px;margin:0 auto}
+.logo{width:44px;height:44px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:var(--hand);font-weight:700;font-size:26px;flex:none;box-shadow:var(--sh);border:1px solid var(--line)}
+:root[data-theme="dark"] .logo,.th-dark .logo{color:#06221A}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .logo{color:#06221A} }
+.th-light .logo{color:#fff}
+.mswitch{flex:1;display:flex;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:999px;box-shadow:var(--sh);height:44px;padding:0 4px;min-width:0}
+.mswitch button{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:var(--muted);flex:none}
+.mswitch button:active{background:var(--surface2)}
+.mswitch b{flex:1;text-align:center;font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ibtn{width:44px;height:44px;border-radius:50%;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh);display:grid;place-items:center;color:var(--ink);flex:none}
+
+/* ---------- página ---------- */
+main{max-width:760px;margin:0 auto;padding:4px 16px calc(96px + env(safe-area-inset-bottom,0px))}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:var(--ink2)}
+h1{font-family:var(--hand);font-weight:700;color:var(--ink);font-size:40px;line-height:1;margin:6px 0 2px}
+.lead{font-size:12.5px;color:var(--muted);font-weight:600;margin:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px;margin-top:12px;box-shadow:var(--sh)}
+.card h3{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card h3 span{font-weight:600;letter-spacing:0;text-transform:none}
+.gsep{display:flex;align-items:center;gap:10px;margin:18px 0 9px}
+.gsep h2{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0;white-space:nowrap}
+.gsep .l{flex:1;height:1px;background:var(--line)}
+.gsep .c{font-size:11.5px;color:var(--faint);font-weight:700}
+.note{font-size:11.5px;color:var(--faint);text-align:center;margin:12px 0 0}
+
+/* calendário */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .wh{font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--muted);text-align:center;padding:2px 0 4px;border-radius:8px}
+.cal button.wh:active{background:var(--surface2)}
+.cal .d{height:42px;border-radius:11px;background:var(--surface2);border:1px solid var(--line);font-weight:700;font-size:13.5px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.cal .d.has{background:var(--acc-soft);color:var(--acc);border-color:transparent}
+.cal .d .c{font-size:9.5px;font-weight:800;margin-top:3px}
+.cal .d.past{opacity:.45}
+.cal .d.today{box-shadow:inset 0 0 0 2px var(--ink)}
+.cal .d.sel{background:var(--acc);color:var(--acc-t);border-color:var(--acc)}
+.cal .x{visibility:hidden}
+
+/* dia + saídas (igual ao app) */
+.day{background:var(--surface);border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;box-shadow:var(--sh);margin-bottom:9px}
+.day .dh{display:flex;align-items:baseline;gap:9px;padding:7px 12px 8px;border-bottom:1px solid var(--line);background:var(--surface2)}
+.day .dh .n{font-family:var(--hand);font-weight:700;font-size:27px;line-height:.8;color:var(--ink)}
+.day .dh .wd{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--ink)}
+.day .dh .mo{flex:1;font-size:11px;font-weight:600;color:var(--ink2)}
+.day .dh .cnt{font-size:11px;font-weight:700;color:var(--ink2)}
+.day .dh .plus{align-self:center;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:var(--acc);background:var(--acc-soft);margin-left:4px}
+.day .dh .plus svg{width:15px;height:15px}
+.slot{display:grid;grid-template-columns:46px 1fr auto;gap:1px 9px;width:100%;text-align:left;padding:8px 12px;align-items:center}
+.slot+.slot{border-top:1px solid var(--line)}
+button.slot:active{background:var(--surface2)}
+.slot .time{grid-column:1;grid-row:1/3;font-size:14px;font-weight:800;color:var(--acc)}
+.slot .pl{grid-column:2;grid-row:1;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot .dr{grid-column:2;grid-row:2;font-size:11.5px;font-weight:600;color:var(--muted)}
+.slot .dr em{font-style:normal;color:var(--amber)}
+.slot .tg{grid-column:3;grid-row:1/3;font-size:11px;font-weight:800;padding:5px 9px;border-radius:8px;background:var(--acc-soft);color:var(--acc);white-space:nowrap}
+.slot .tg.none{background:var(--amber-soft);color:var(--amber)}
+.slot .ob{grid-column:2/4;grid-row:3;font-size:11.5px;color:var(--muted);font-style:italic;margin-top:2px}
+.empty{text-align:center;padding:26px 16px;color:var(--muted);font-size:13.5px;font-weight:600}
+.empty b{display:block;font-family:var(--hand);font-size:28px;color:var(--ink);margin-bottom:4px}
+
+/* botões */
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface2);border-radius:999px;padding:10px 16px;font-size:13.5px;font-weight:700;display:inline-flex;align-items:center;gap:7px;justify-content:center}
+.btn svg{width:17px;height:17px}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:var(--acc-t)}
+.btn.danger{color:var(--red);border-color:var(--red-soft);background:var(--red-soft)}
+.btn.wide{width:100%;padding:14px;border-radius:var(--r2);font-size:15px}
+.btn.sm{padding:7px 12px;font-size:12.5px}
+.btn[disabled]{opacity:.5}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line)}
+.bar .row{max-width:760px;margin:0 auto;display:flex;gap:8px}
+.bar .btn{flex:1;padding:13px 10px;border-radius:var(--r2);font-size:14.5px}
+.bar .btn.sq{flex:none;width:52px;padding:0}
+
+/* ---------- modal ---------- */
+.modal{position:fixed;inset:0;z-index:120;display:none;align-items:flex-end;justify-content:center;background:rgba(6,12,10,.5);backdrop-filter:blur(2px)}
+.modal.open{display:flex}
+.modal .box{background:var(--surface);width:100%;max-width:560px;border-radius:24px 24px 0 0;padding:8px 18px 0;animation:up .2s ease;max-height:94vh;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column}
+.modal .box>*{flex-shrink:0}
+@keyframes up{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+@media(min-width:600px){.modal{align-items:center}.modal .box{border-radius:24px;padding-top:14px}}
+.grab{width:40px;height:5px;border-radius:9px;background:var(--line2);margin:0 auto 6px}
+.mh{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.mh h2{flex:1;font-family:var(--hand);font-weight:700;color:var(--ink);font-size:32px;line-height:1;margin:0}
+.mh .x{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;color:var(--muted);flex:none}
+.lab{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:16px 0 7px;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.lab span{font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink2);font-size:12px;text-align:right}
+.mcal{border:1px solid var(--line);border-radius:var(--r2);padding:8px;background:var(--surface)}
+.mcal .mn{display:flex;align-items:center;margin-bottom:6px}
+.mcal .mn b{flex:1;text-align:center;font-size:14px;font-weight:800}
+.mcal .mn button{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
+.mcal .d{height:38px}
+.pk{display:flex;flex-wrap:wrap;gap:6px}
+.pk button{border:1px solid var(--line);background:var(--surface2);border-radius:999px;padding:8px 13px;font-size:13.5px;font-weight:700}
+.pk button[aria-pressed="true"]{background:var(--acc);border-color:var(--acc);color:var(--acc-t)}
+.pk button.add{border-style:dashed;color:var(--acc);background:transparent}
+.pk .rm{display:inline-flex;align-items:center;gap:6px}
+.pk .rm svg{width:13px;height:13px;color:var(--red)}
+.addrow{display:flex;gap:6px;margin-top:8px}
+.addrow input{flex:1;min-width:0;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:9px 14px;font-size:15px;font-weight:600}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:5px;max-height:188px;overflow:auto;padding:2px}
+.tgrid button{height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);font-size:13px;font-weight:800;color:var(--muted)}
+.tgrid button[aria-pressed="true"]{background:var(--acc);border-color:var(--acc);color:var(--acc-t)}
+.inp{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:var(--r3);padding:11px 12px;font-size:16px;font-weight:700}
+textarea.inp{resize:vertical;min-height:44px;font-weight:600;font-size:15px}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.f span{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px}
+.f.full{grid-column:1/-1}
+.mfoot{position:sticky;bottom:0;background:var(--surface);padding:12px 0 calc(14px + env(safe-area-inset-bottom,0px));margin-top:16px;border-top:1px solid var(--line);display:grid;gap:8px}
+.mfoot .acts .btn{flex:1}
+.seg{display:flex;gap:4px;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:3px}
+.seg button{flex:1;border-radius:999px;padding:8px 6px;font-size:12.5px;font-weight:700;color:var(--muted);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:var(--sh)}
+.fixrow{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r2);margin-bottom:7px;background:var(--surface2)}
+.fixrow .bd{flex:1;min-width:0}
+.fixrow b{display:block;font-size:14px;font-weight:800}
+.fixrow small{display:block;font-size:11.5px;color:var(--muted)}
+.fixrow button{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--red);background:var(--red-soft);flex:none}
+.prev{border:1px solid var(--line);border-radius:var(--r2);background:var(--surface2);min-height:180px;display:grid;place-items:center;overflow:hidden}
+.prev img{display:block;width:100%;height:auto}
+.prev p{color:var(--muted);font-size:13px;font-weight:600;padding:20px;text-align:center}
+.modal.ask{z-index:250}
+.ask p{font-size:15px;font-weight:700;margin:10px 0 14px;line-height:1.4}
+.toast{position:fixed;left:50%;top:calc(64px + env(safe-area-inset-top,0px));transform:translateX(-50%) translateY(-10px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:13.5px;font-weight:700;opacity:0;pointer-events:none;transition:.2s;z-index:300;max-width:90vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%)}
+
+/* ---------- entrada ---------- */
+.authgate{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+.authgate .box{width:100%;max-width:380px;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:26px 22px;box-shadow:var(--sh);margin:auto}
+.authgate .logo{margin:0 auto 10px;width:54px;height:54px;font-size:32px}
+.authgate h1{font-size:40px;margin:0 0 4px}
+.authgate .fields{display:grid;grid-template-columns:1fr;gap:10px;text-align:left}
+.authgate .lead{margin:0 0 4px}
+.authgate .acts{flex-direction:column;align-items:stretch}
+.authgate .gbox{text-align:left;background:var(--surface2);border:1px solid var(--line);border-radius:var(--r2);padding:12px 14px;margin-top:14px;font-size:13px;color:var(--muted);font-weight:600}
+.authgate .gbox b{color:var(--text)}
+.authgate .gbox.warn{background:var(--amber-soft);border-color:transparent;color:var(--text)}
+#authErr{display:none;font-size:13px;font-weight:700;margin:0}
+#sMsg{color:var(--red);font-weight:700;font-size:13px;margin:10px 0 0}
+.btn.link{background:transparent;border-color:transparent;color:var(--muted)}
+.sync{font-weight:700;color:var(--faint)}
+.sync[data-s="ok"]{color:var(--acc)}
+.sync[data-s="offline"]{color:var(--amber)}
+.who{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface2);border-radius:999px;padding:8px 13px;font-size:13.5px;font-weight:700}
+.who i{font-style:normal;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--acc);background:var(--acc-soft);border-radius:99px;padding:2px 7px}
+.acc{font-size:13.5px;color:var(--muted);font-weight:600;margin:0 0 8px}
+.acc b{color:var(--text)}
+
+/* ---------- imagem para o grupo: tabela compacta ---------- */
+#stage{position:absolute;left:-30000px;top:0;pointer-events:none}
+.pz,.pz *{font-variant-numeric:normal!important}
+.pz{width:760px;padding:22px 24px 14px;background:var(--surface);color:var(--text);font-family:var(--font)}
+.pz .hd{display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:2px solid var(--ink)}
+.pz .logo{width:42px;height:42px;font-size:25px;box-shadow:none}
+.pz .eb{font-size:10px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--ink2)}
+.pz h1{font-size:36px;line-height:.9;margin:2px 0 0}
+.pz .mes{margin-left:auto;text-align:right}
+.pz .mes b{display:block;font-family:var(--hand);font-weight:700;font-size:32px;line-height:.9;color:var(--ink)}
+.pz .mes span{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.pz table{width:100%;border-collapse:separate;border-spacing:0;margin-top:6px;font-size:13px;line-height:1.25}
+.pz th{font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 8px 2px}
+.pz th:first-child{padding-left:12px}
+/* cada data é um bloco próprio, separado por um respiro; entre semanas o respiro é maior */
+.pz td{padding:7px 8px;vertical-align:middle;background:var(--surface2);border-bottom:1px solid var(--line)}
+.pz tbody.dy tr:last-child td,.pz td.dt{border-bottom:none}
+.pz tbody.dy tr:first-child td:first-child{border-radius:10px 0 0 10px}
+.pz tbody.dy tr:first-child td:last-child{border-top-right-radius:10px}
+.pz tbody.dy tr:last-child td:last-child{border-bottom-right-radius:10px}
+.pz tbody.sp td{padding:0;height:8px;background:none;border:none}
+.pz tbody.sp.w td{height:18px}
+.pz td.dt{padding-left:12px}
+.pz td.dt{width:58px;white-space:nowrap;padding-right:4px}
+.pz td.dt b{font-family:var(--hand);font-weight:700;font-size:25px;line-height:.8;color:var(--ink);margin-right:5px}
+.pz td.dt span{font-size:9.5px;font-weight:800;letter-spacing:.1em;color:var(--ink2)}
+.pz td.h{width:50px;font-weight:800;color:var(--acc)}
+.pz td.l{font-weight:700}
+.pz td.l i{display:block;font-size:11px;font-weight:600;color:var(--muted)}
+.pz td.d{font-weight:600}
+.pz td.d em{font-style:normal;color:var(--amber);font-size:12px}
+.pz td.t{font-weight:800;color:var(--acc);white-space:nowrap}
+.pz td.g{color:var(--muted);font-size:12px;font-weight:600}
+.pz .ft{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);font-weight:700;margin-top:12px}
+.prev{gap:10px;padding:0;background:var(--line)}
+</style>
+</head>
+<body>
+<!-- ---------- entrada ---------- -->
+<section class="authgate" id="gate">
+  <div class="box" id="gLogin">
+    <div class="logo">T</div>
+    <h1>Programação de Campo</h1>
+    <p class="lead">Entre para montar e ver a programação. Tudo fica salvo na nuvem e aparece igual para todos que têm acesso.</p>
+    <div class="seg" id="authTabs" style="margin-top:16px"><button type="button" data-t="in" aria-pressed="true">Entrar</button><button type="button" data-t="up" aria-pressed="false">Criar conta</button></div>
+    <form id="authForm" class="fields" style="margin-top:14px">
+      <label class="f"><span>E-mail</span><input class="inp" type="email" id="authEmail" placeholder="seu@email.com" autocomplete="username"></label>
+      <label class="f"><span>Senha</span><input class="inp" type="password" id="authPass" placeholder="Mínimo 6 caracteres" autocomplete="current-password"></label>
+      <p id="authErr"></p>
+      <button class="btn primary wide" id="btnAuth" type="submit">Entrar</button>
+    </form>
+    <div class="acts" style="margin-top:8px">
+      <button class="btn wide" id="btnGoogle" type="button"><svg width="17" height="17" viewBox="0 0 48 48" style="flex:none"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.1 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.9 1.1 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4c-7.5 0-14 4.2-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.4 0 10.3-2.1 14-5.5l-6.5-5.4C29.4 34.9 26.8 36 24 36c-5.3 0-9.7-3.4-11.3-8.1l-6.6 5.1C9.9 39.6 16.4 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.5 5.4C41.8 35.8 44 30.3 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>Continuar com Google</button>
+      <button class="btn link" id="btnForgot" type="button">Esqueci minha senha</button>
+    </div>
+    <p class="note" id="authStatus">carregando…</p>
+  </div>
+  <div class="box hide" id="gWait"><div class="logo">T</div><p class="lead" id="waitTxt">Entrando…</p></div>
+  <div class="box hide" id="gSetup">
+    <div class="logo">T</div>
+    <h1>Quase lá</h1>
+    <p class="lead">Conectado como <b id="sEmail"></b></p>
+    <p id="sMsg" class="hide"></p>
+    <div class="gbox warn hide" id="sVerify">Foi convidado para uma programação que já existe? Confirme seu e-mail primeiro: abra a mensagem que enviamos e toque no link.
+      <div class="acts" style="margin-top:10px"><button class="btn primary" id="sRetry">Já confirmei</button><button class="btn" id="sResend">Reenviar e-mail</button></div></div>
+    <div class="gbox hide" id="sAsk">Se outra pessoa da congregação já monta a programação, peça para ela incluir o e-mail <b id="sAskEmail"></b> em <b>Ajustes › Pessoas com acesso</b>. Depois toque em “Verificar de novo”.
+      <div class="acts" style="margin-top:10px"><button class="btn" id="sRetry2">Verificar de novo</button></div></div>
+    <div class="gbox">Ou comece a programação da congregação nesta conta. Você fica como responsável e escolhe quem mais pode ver e editar.<span id="sLocal" style="display:block;margin-top:6px;color:var(--acc)"></span>
+      <div class="acts" style="margin-top:10px"><button class="btn primary" id="sCreate">Criar programação nesta conta</button></div></div>
+    <div class="acts" style="margin-top:12px"><button class="btn link" id="sOut">Sair e entrar com outra conta</button></div>
+  </div>
+</section>
+
+<div id="appRoot" class="hide">
+
+<header class="top">
+  <div class="row">
+    <div class="logo">T</div>
+    <div class="mswitch">
+      <button id="mPrev" aria-label="Mês anterior"><svg class="i" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <b id="mLabel">—</b>
+      <button id="mNext" aria-label="Próximo mês"><svg class="i" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+    </div>
+    <button class="ibtn" id="btnCfg" aria-label="Ajustes"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+  </div>
+</header>
+
+<main>
+  <div class="eyebrow" id="congEyebrow">Campo</div>
+  <h1>Programação</h1>
+  <p class="lead"><span id="mSummary"></span> · <span class="sync" id="syncTxt">carregando…</span></p>
+
+  <div class="card">
+    <h3>Calendário <span id="calHint">toque num dia para incluir uma saída</span></h3>
+    <div class="cal" id="cal"></div>
+  </div>
+
+  <div id="list"></div>
+  <p class="note">Salvo na nuvem: aparece igual para todos que têm acesso, em qualquer aparelho.</p>
+</main>
+
+<nav class="bar">
+  <div class="row">
+    <button class="btn sq" id="btnFix" aria-label="Saídas fixas" title="Saídas fixas"><svg class="i" viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg></button>
+    <button class="btn primary" id="btnNew"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nova saída</button>
+    <button class="btn" id="btnImg"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Imagem</button>
+  </div>
+</nav>
+
+</div>
+
+<!-- ---------- saída: incluir / editar ---------- -->
+<section class="modal" id="mEdit"><div class="box">
+  <div class="grab"></div>
+  <div class="mh"><h2 id="eTitle">Nova saída</h2><button class="x" data-close aria-label="Fechar"><svg class="i" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+
+  <div class="lab">Datas <span id="eDatesTxt">nenhuma selecionada</span></div>
+  <div class="mcal">
+    <div class="mn"><button id="eCalPrev" aria-label="Mês anterior"><svg class="i" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button><b id="eCalLabel"></b><button id="eCalNext" aria-label="Próximo mês"><svg class="i" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button></div>
+    <div class="cal" id="eCal"></div>
+  </div>
+  <p class="note" id="eCalNote" style="text-align:left;margin-top:6px">Toque em vários dias para repetir a mesma saída. Tocar no nome do dia (SÁB, DOM…) marca todos daquele dia no mês.</p>
+
+  <div class="lab">Horário</div>
+  <div class="pk" id="eTimes"></div>
+  <input class="inp" type="time" id="eTime" style="margin-top:8px;max-width:160px">
+
+  <div class="lab">Local de saída</div>
+  <div class="pk" id="eLoc"></div>
+
+  <div class="lab">Dirigente <span>opcional</span></div>
+  <div class="pk" id="eDir"></div>
+
+  <div class="lab">Território <span id="eTerrTxt">opcional · pode marcar mais de um</span></div>
+  <div class="tgrid" id="eTerr"></div>
+
+  <div class="lab">Grupos <span>opcional · pode marcar mais de um</span></div>
+  <div class="pk" id="eGrp"></div>
+
+  <div class="lab">Observação <span>opcional</span></div>
+  <textarea class="inp" id="eObs" rows="1" placeholder="Ex.: cartas, testemunho público, rural…"></textarea>
+
+  <div class="mfoot">
+    <button class="btn primary wide" id="eSave">Salvar</button>
+    <div class="acts" id="eMore"><button class="btn" id="eDup"><svg class="i" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Repetir em outras datas</button><button class="btn danger" id="eDel"><svg class="i" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>Excluir</button></div>
+  </div>
+</div></section>
+
+<!-- ---------- saídas fixas ---------- -->
+<section class="modal" id="mFix"><div class="box">
+  <div class="grab"></div>
+  <div class="mh"><h2>Saídas fixas</h2><button class="x" data-close aria-label="Fechar"><svg class="i" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+  <p class="lead">Cadastre as saídas que se repetem toda semana. Depois é só preencher o mês e completar dirigente e território em cada uma.</p>
+  <div class="lab">Cadastradas</div>
+  <div id="fList"></div>
+  <button class="btn primary wide" id="fApply" style="margin-top:4px"></button>
+
+  <div class="lab" style="margin-top:22px">Nova saída fixa</div>
+  <div class="pk" id="fWd"></div>
+  <div class="lab">Horário</div>
+  <input class="inp" type="time" id="fTime" style="max-width:160px">
+  <div class="lab">Local de saída</div>
+  <div class="pk" id="fLoc"></div>
+  <div class="lab">Grupos <span>opcional</span></div>
+  <div class="pk" id="fGrp"></div>
+  <div class="lab">Dirigente <span>opcional, se for sempre o mesmo</span></div>
+  <div class="pk" id="fDir"></div>
+  <div class="mfoot"><button class="btn wide" id="fAdd"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Adicionar saída fixa</button></div>
+</div></section>
+
+<!-- ---------- imagem ---------- -->
+<section class="modal" id="mImg"><div class="box">
+  <div class="grab"></div>
+  <div class="mh"><h2>Imagem para o grupo</h2><button class="x" data-close aria-label="Fechar"><svg class="i" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+  <div class="lab">Páginas <span id="iInfo"></span></div>
+  <div class="seg" id="iPg"><button data-v="1" aria-pressed="true">1 página</button><button data-v="2" aria-pressed="false">2 páginas</button></div>
+  <div class="lab">Tema</div>
+  <div class="seg" id="iTh"><button data-v="light" aria-pressed="true">Claro</button><button data-v="dark" aria-pressed="false">Escuro</button></div>
+  <div class="lab">Prévia</div>
+  <div class="prev" id="iPrev"><p>gerando…</p></div>
+  <div class="mfoot">
+    <button class="btn primary wide" id="iShare"><svg class="i" viewBox="0 0 24 24"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M16 6l-4-4-4 4M12 2v13"/></svg><span id="iShareTxt">Compartilhar imagem</span></button>
+    <div class="acts"><button class="btn" id="iDown"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar</button><button class="btn" id="iText"><svg class="i" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copiar como texto</button></div>
+  </div>
+</div></section>
+
+<!-- ---------- ajustes ---------- -->
+<section class="modal" id="mCfg"><div class="box">
+  <div class="grab"></div>
+  <div class="mh"><h2>Ajustes</h2><button class="x" data-close aria-label="Fechar"><svg class="i" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+  <div class="lab">Congregação</div>
+  <div class="fields">
+    <label class="f full"><span>Nome</span><input class="inp" id="cCong"></label>
+    <label class="f"><span>Cidade</span><input class="inp" id="cCity"></label>
+    <label class="f"><span>Nº de territórios</span><input class="inp" id="cN" type="number" min="1" max="500" inputmode="numeric"></label>
+  </div>
+  <div class="lab">Pessoas com acesso</div>
+  <div class="pk" id="cEd"></div>
+  <p class="note" id="cEdNote" style="text-align:left;margin-top:8px"></p>
+  <div class="lab">Tema deste aparelho</div>
+  <div class="seg" id="cTheme"><button data-v="auto">Automático</button><button data-v="light">Claro</button><button data-v="dark">Escuro</button></div>
+  <div class="lab">Dirigentes</div><div class="pk" id="cDir"></div>
+  <div class="lab">Locais de saída</div><div class="pk" id="cLoc"></div>
+  <div class="lab">Grupos</div><div class="pk" id="cGrp"></div>
+  <div class="lab">Nosso Território</div>
+  <button class="btn" id="cNT"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Trazer dirigentes e locais do app</button>
+  <p class="note" style="text-align:left;margin-top:6px">Funciona quando você entra com a mesma conta do Nosso Território.</p>
+  <div class="lab">Backup</div>
+  <div class="acts">
+    <button class="btn" id="cExp"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Exportar backup</button>
+    <button class="btn" id="cImp"><svg class="i" viewBox="0 0 24 24"><path d="M12 21V9M7 14l5-5 5 5M5 3h14"/></svg>Importar backup</button>
+    <input type="file" id="cFile" accept=".json,application/json" class="hide">
+  </div>
+  <div class="lab">Mês exibido</div>
+  <button class="btn danger" id="cClear"></button>
+  <div class="lab">Conta</div>
+  <p class="acc" id="cAcc"></p>
+  <p class="acc" id="cSync"></p>
+  <button class="btn" id="cOut"><svg class="i" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Sair da conta</button>
+  <div class="mfoot"><button class="btn primary wide" data-close>Pronto</button></div>
+</div></section>
+
+<!-- ---------- confirmação ---------- -->
+<section class="modal ask" id="mAsk"><div class="box">
+  <p id="aMsg"></p>
+  <div class="acts" id="aBtns" style="flex-direction:column;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))"></div>
+</div></section>
+
+<div class="toast" id="toast"></div>
+<div id="stage"></div>
+
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const MES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const WD=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+const WDS=['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
+const WDL=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+const iso=(y,m,d)=>y+'-'+pad(m+1)+'-'+pad(d);
+const pd=s=>{ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); };
+const today=()=>{ const t=new Date(); return iso(t.getFullYear(),t.getMonth(),t.getDate()); };
+const dim=(y,m)=>new Date(y,m+1,0).getDate();
+const byName=(a,b)=>a.localeCompare(b,'pt',{numeric:true,sensitivity:'base'});
+const arr=x=>Array.isArray(x)?x:[];
+const ICON={x:'<svg class="i" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>',plus:'<svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',trash:'<svg class="i" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>'};
+function monthName(y,m){ return MES[m]+' de '+y; }
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const show=(id,on)=>$(id).classList.toggle('hide',!on);
+
+/* ---------- preferências deste aparelho (tema e imagem) ---------- */
+const PKEY='programacao_campo_prefs';
+const P=(()=>{ let p={}; try{ p=JSON.parse(localStorage.getItem(PKEY))||{}; }catch(e){} return {theme:p.theme||'auto',img:Object.assign({pages:'',th:'light'},p.img||{})}; })();
+function savePrefs(){ try{ localStorage.setItem(PKEY,JSON.stringify(P)); }catch(e){} }
+
+/* ---------- estado: espelho do Firestore ---------- */
+const CFG0={cong:'',city:'',nTerr:58};
+let S=blankS();
+function blankS(){ return {cfg:Object.assign({},CFG0),dir:[],loc:[],grp:[],fix:[],editores:[],owner:'',ownerEmail:'',it:[]}; }
+function itemsOn(date){ return S.it.filter(x=>x.date===date).sort((a,b)=>(a.time||'').localeCompare(b.time||'')||(a.loc||'').localeCompare(b.loc||'')); }
+function terrTxt(t){ t=arr(t).map(Number).filter(n=>n>0).sort((a,b)=>a-b); return t.length?('Terr. '+t.map(pad).join(', ')):''; }
+function grpTxt(g){ return arr(g).slice().sort(byName).join(', '); }
+
+/* ---------- Firebase: mesmo projeto do Nosso Território ---------- */
+const firebaseConfig={apiKey:"AIzaSyAFw7ArMieWTNm6QDnOPxirD3UtwgjaT6g",authDomain:"nosso-territorio-5bc39.firebaseapp.com",projectId:"nosso-territorio-5bc39",storageBucket:"nosso-territorio-5bc39.firebasestorage.app",messagingSenderId:"869076551754",appId:"1:869076551754:web:e417b1477bad82ac5dbeb3"};
+if(!window.firebase){ document.addEventListener('DOMContentLoaded',()=>{ $('authStatus').textContent='Não foi possível carregar o Firebase. Verifique a internet e abra de novo.'; }); throw new Error('Firebase não carregou'); }
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth(), db=firebase.firestore(), FV=firebase.firestore.FieldValue;
+db.enablePersistence({synchronizeTabs:true}).catch(()=>{});   // funciona sem internet e envia quando voltar
+let user=null, PID=null, progRef=null, unsubs=[];
+const isOwner=()=>!!user&&PID===user.uid;
+const myEmail=()=>((user&&user.email)||'').toLowerCase();
+function cloudErr(e){ const c=(e&&e.code)||''; toast(c==='permission-denied'?'Sem permissão para salvar. Seu acesso pode ter sido removido.':'Não foi possível salvar: '+(c||'erro')); }
+function clean(o){ return JSON.parse(JSON.stringify(o)); }
+
+/* gravações */
+function itemData(x){ return clean({date:x.date,time:x.time||'',loc:x.loc||'',dir:x.dir||'',terr:arr(x.terr),grp:arr(x.grp),obs:x.obs||'',ts:Date.now(),por:myEmail()}); }
+function putItem(x){ return progRef.collection('itens').doc(x.id).set(itemData(x)).catch(cloudErr); }
+async function putItems(list){ for(let i=0;i<list.length;i+=400){ const b=db.batch(); list.slice(i,i+400).forEach(x=>b.set(progRef.collection('itens').doc(x.id),itemData(x))); await b.commit().catch(cloudErr); } }
+async function delItems(ids){ for(let i=0;i<ids.length;i+=400){ const b=db.batch(); ids.slice(i,i+400).forEach(id=>b.delete(progRef.collection('itens').doc(id))); await b.commit().catch(cloudErr); } }
+function meta(o){ return progRef.update(Object.assign(o,{ts:Date.now()})).catch(cloudErr); }
+function addTo(list,name){ name=String(name||'').trim(); if(!name) return ''; const ex=S[list].find(x=>x.toLowerCase()===name.toLowerCase()); if(ex) return ex;
+  S[list].push(name); S[list].sort(byName); meta({[list]:FV.arrayUnion(name)}); return name; }
+function removeFrom(list,name){ S[list]=S[list].filter(x=>x!==name); meta({[list]:FV.arrayRemove(name)}); }
+
+/* leitura em tempo real */
+function stopListen(){ unsubs.forEach(u=>{ try{ u(); }catch(e){} }); unsubs=[]; }
+let syncState={doc:'',it:''};
+function setSync(k,snap){ syncState[k]=snap.metadata.hasPendingWrites?'salvando':snap.metadata.fromCache?'offline':'ok';
+  const v=Object.values(syncState), s=v.includes('salvando')?'salvando':v.includes('offline')?'offline':'ok';
+  const t={ok:'sincronizado',salvando:'salvando…',offline:'sem internet · salvo no aparelho'}[s];
+  $('syncTxt').textContent=t; $('syncTxt').dataset.s=s; if($('cSync')) $('cSync').textContent=cap(t)+(s==='offline'?'. Envia sozinho quando a internet voltar.':'.'); }
+function listen(){
+  stopListen();
+  unsubs.push(progRef.onSnapshot({includeMetadataChanges:true},snap=>{
+    if(!snap.exists){ lostAccess('A programação não existe mais.'); return; }
+    const d=snap.data()||{};
+    S.cfg=Object.assign({},CFG0,d.cfg||{}); S.dir=arr(d.dir).slice().sort(byName); S.loc=arr(d.loc).slice().sort(byName); S.grp=arr(d.grp).slice().sort(byName);
+    S.fix=arr(d.fix); S.editores=arr(d.editores).slice().sort(byName); S.owner=d.owner||''; S.ownerEmail=d.ownerEmail||'';
+    setSync('doc',snap); render(); if(MS.includes('mCfg')) fillCfg(); if(MS.includes('mFix')) drawFix();
+  },e=>{ if(e&&e.code==='permission-denied') lostAccess('Seu acesso a esta programação foi removido.'); }));
+  unsubs.push(progRef.collection('itens').onSnapshot({includeMetadataChanges:true},snap=>{
+    S.it=snap.docs.map(d=>Object.assign({id:d.id},d.data())).filter(x=>x&&x.date);
+    setSync('it',snap); render();
+  },e=>{ if(e&&e.code==='permission-denied') lostAccess('Seu acesso a esta programação foi removido.'); }));
+}
+function lostAccess(msg){ stopListen(); try{ localStorage.removeItem('pc_prog_'+(user&&user.uid)); }catch(e){} PID=null; progRef=null; S=blankS(); closeAll(); showSetup(msg); }
+
+/* ---------- entrada / login ---------- */
+let authMode='in';
+function gate(which){ ['gLogin','gWait','gSetup'].forEach(id=>show(id,id===which)); show('gate',!!which); show('appRoot',!which); }
+$('authTabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; authMode=b.dataset.t; [...$('authTabs').children].forEach(x=>x.setAttribute('aria-pressed',String(x===b))); $('btnAuth').textContent=authMode==='in'?'Entrar':'Criar conta'; authErr(''); });
+function authErr(msg,ok){ const e=$('authErr'); e.textContent=msg; e.style.display=msg?'block':'none'; e.style.color=ok?'var(--acc)':'var(--red)'; }
+function authMsg(c){ return {'auth/invalid-email':'E-mail inválido.','auth/missing-password':'Informe a senha.','auth/weak-password':'A senha precisa ter pelo menos 6 caracteres.','auth/email-already-in-use':'Este e-mail já tem uma conta. Toque em "Entrar".','auth/invalid-credential':'E-mail ou senha incorretos.','auth/wrong-password':'E-mail ou senha incorretos.','auth/user-not-found':'Não existe conta com este e-mail.','auth/too-many-requests':'Muitas tentativas. Aguarde um pouco.','auth/network-request-failed':'Sem internet.','auth/popup-closed-by-user':''}[c]??('Não foi possível entrar ('+c+').'); }
+$('authForm').addEventListener('submit',async e=>{ e.preventDefault(); authErr(''); const em=$('authEmail').value.trim(), pw=$('authPass').value; if(!em||!pw){ authErr('Preencha e-mail e senha.'); return; }
+  $('btnAuth').disabled=true;
+  try{ if(authMode==='in') await auth.signInWithEmailAndPassword(em,pw); else { const c=await auth.createUserWithEmailAndPassword(em,pw); try{ await c.user.sendEmailVerification(); }catch(_){} } }
+  catch(err){ authErr(authMsg(err.code)); } $('btnAuth').disabled=false; });
+$('btnGoogle').addEventListener('click',async()=>{ authErr(''); const pv=new firebase.auth.GoogleAuthProvider(); pv.setCustomParameters({prompt:'select_account'});
+  try{ await auth.signInWithPopup(pv); }catch(err){ if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment','auth/cancelled-popup-request'].includes(err.code)){ try{ await auth.signInWithRedirect(pv); }catch(e2){ authErr(authMsg(e2.code)); } } else authErr(authMsg(err.code)); } });
+$('btnForgot').addEventListener('click',async()=>{ const em=$('authEmail').value.trim(); if(!em){ authErr('Digite seu e-mail acima e toque de novo.'); return; } try{ await auth.sendPasswordResetEmail(em); authErr('Enviamos um e-mail para criar uma nova senha.',true); }catch(err){ authErr(authMsg(err.code)); } });
+auth.getRedirectResult().catch(err=>authErr(authMsg(err.code)));
+let authSeen=false;
+auth.onAuthStateChanged(async u=>{
+  authSeen=true; stopListen(); closeAll();
+  if(!u){ user=null; PID=null; progRef=null; S=blankS(); $('authTabs').children[0].click(); $('authPass').value=''; $('authStatus').textContent=''; gate('gLogin'); return; }
+  user=u; $('waitTxt').textContent='Entrando como '+(u.email||'conta')+'…'; gate('gWait');
+  await resolveProg();
+});
+setTimeout(()=>{ if(!authSeen) $('authStatus').textContent='O Firebase ainda não respondeu. Verifique a internet; se continuar, feche e abra de novo.'; },8000);
+
+/* descobre qual programação esta conta acessa: a própria, ou a que alguém compartilhou com o e-mail dela */
+async function resolveProg(){
+  const u=user; let offline=false;
+  try{ const last=localStorage.getItem('pc_prog_'+u.uid); if(last){ openProg(last); return; } }catch(e){}
+  try{ const d=await db.collection('programacoes').doc(u.uid).get(); if(user!==u) return; if(d.exists){ openProg(u.uid); return; } }catch(e){ if(e.code==='unavailable') offline=true; }
+  const em=myEmail();
+  if(em&&u.emailVerified){ try{ const a=await db.collection('acesso').doc(em).get(); if(user!==u) return; if(a.exists&&a.data().prog){ openProg(a.data().prog); return; } }catch(e){ if(e.code==='unavailable') offline=true; } }
+  showSetup(offline?'Sem internet. Conecte-se para entrar pela primeira vez.':'');
+}
+function openProg(pid){ PID=pid; progRef=db.collection('programacoes').doc(pid); try{ localStorage.setItem('pc_prog_'+user.uid,pid); }catch(e){}
+  S=blankS(); syncState={doc:'',it:''}; $('syncTxt').textContent='carregando…'; gate(null); listen(); render(); }
+function showSetup(msg){
+  gate('gSetup'); $('sEmail').textContent=user.email||'(sem e-mail)';
+  $('sMsg').textContent=msg||''; show('sMsg',!!msg);
+  const unverified=!!user.email&&!user.emailVerified; show('sVerify',unverified); show('sAsk',!unverified);
+  $('sAskEmail').textContent=myEmail();
+  $('sLocal').textContent=localCount()?`Os ${localCount()} registros já salvos neste aparelho serão levados junto.`:'';
+}
+$('sRetry').onclick=async()=>{ $('sRetry').disabled=true; try{ await user.reload(); await user.getIdToken(true); user=auth.currentUser; }catch(e){} $('waitTxt').textContent='Verificando…'; gate('gWait'); await resolveProg(); $('sRetry').disabled=false; };
+$('sRetry2').onclick=()=>$('sRetry').onclick();
+$('sResend').onclick=async()=>{ try{ await user.sendEmailVerification(); toast('E-mail de confirmação enviado'); }catch(e){ toast(e.code==='auth/too-many-requests'?'Aguarde um pouco para reenviar':'Não foi possível enviar'); } };
+$('sOut').onclick=()=>auth.signOut();
+$('sCreate').onclick=async()=>{
+  if(await ask('Criar a programação de campo nesta conta? Você será o responsável e poderá dar acesso a outras pessoas.',[['Criar','primary'],['Cancelar','']])!==0) return;
+  $('sCreate').disabled=true; const u=user, ref=db.collection('programacoes').doc(u.uid);
+  const base={owner:u.uid,ownerEmail:myEmail(),editores:[],cfg:{cong:'',city:'',nTerr:58},dir:[],loc:['Salão do Reino'],grp:[],fix:[],ts:Date.now()};
+  const nt=await readNossoTerritorio(); if(nt){ base.cfg.cong=nt.cong||''; base.cfg.nTerr=nt.n||58; base.dir=nt.dir; base.loc=[...new Set([...base.loc,...nt.loc])].sort(byName); }
+  const L=localLegacy(); let items=[];
+  if(L){ base.cfg=Object.assign(base.cfg,{cong:L.cfg&&L.cfg.cong||base.cfg.cong,city:L.cfg&&L.cfg.city||'',nTerr:+(L.cfg&&L.cfg.nTerr)||base.cfg.nTerr});
+    ['dir','loc','grp'].forEach(k=>base[k]=[...new Set([...base[k],...arr(L[k])])].sort(byName)); base.fix=arr(L.fix); items=arr(L.it).filter(x=>x&&x.date); }
+  try{ await ref.set(clean(base)); }catch(e){ $('sCreate').disabled=false; toast('Não foi possível criar: '+(e.code||'erro')+'. Confira as regras do Firestore.'); return; }
+  openProg(u.uid); if(items.length){ await putItems(items.map(x=>Object.assign({},x,{id:x.id||uid()}))); try{ localStorage.setItem('programacao_campo_v1_migrado',localStorage.getItem('programacao_campo_v1')); localStorage.removeItem('programacao_campo_v1'); }catch(e){} toast(items.length+' saídas trazidas deste aparelho'); }
+  $('sCreate').disabled=false; };
+
+/* dados da versão anterior (salvos só neste aparelho) */
+function localLegacy(){ try{ const s=JSON.parse(localStorage.getItem('programacao_campo_v1')); return s&&s.v?s:null; }catch(e){ return null; } }
+function localCount(){ const L=localLegacy(); return L?arr(L.it).length:0; }
+/* dirigentes, locais e nome da congregação do app Nosso Território (só quando a conta é a mesma) */
+async function readNossoTerritorio(){
+  try{ const d=await db.collection('congregacoes').doc(user.uid).get(); if(!d.exists) return null; const x=d.data()||{}, ppl=new Set(), loc=new Set();
+    Object.values(x.t||{}).forEach(t=>{ if(t&&t.resp) ppl.add(String(t.resp).trim()); arr(t&&t.hist).forEach(h=>{ if(h&&h.resp) ppl.add(String(h.resp).trim()); }); });
+    arr(x.p&&x.p.items).filter(i=>i&&!i.del).forEach(i=>{ if(i.dir) ppl.add(String(i.dir).trim()); if(i.place) loc.add(String(i.place).trim()); });
+    arr(x.s&&x.s.items).filter(i=>i&&!i.del).forEach(i=>{ if(i.nome) loc.add(String(i.nome).trim()); });
+    return {cong:(x.cfg&&x.cfg.congName)||'',n:+(x.cfg&&x.cfg.total)||58,dir:[...ppl].filter(Boolean).sort(byName),loc:[...loc].filter(Boolean).sort(byName)};
+  }catch(e){ return null; } }
+
+/* ---------- tema ---------- */
+function applyTheme(){ const t=P.theme; if(t==='auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme',t);
+  const dark=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches); document.querySelector('meta[name=theme-color]').content=dark?'#0D1311':'#0B4A34'; }
+
+/* ---------- navegação: o gesto de voltar fecha a janela aberta e nunca fecha a página ---------- */
+const MS=[];
+try{ history.replaceState({m:-1},''); history.pushState({m:0},''); }catch(e){}
+addEventListener('popstate',()=>{
+  const st=history.state; if(!st||st.m<0){ try{ history.pushState({m:0},''); }catch(e){} }
+  const d=st&&st.m>0?st.m:0; while(MS.length>d){ const id=MS.pop(); $(id).classList.remove('open'); onClose(id); }
+  document.body.classList.toggle('lock',MS.length>0);
+});
+function openM(id){ if(MS.includes(id)) return; MS.push(id); $(id).classList.add('open'); document.body.classList.add('lock'); try{ history.pushState({m:MS.length},''); }catch(e){} }
+function closeM(n){ n=n||1; n=Math.min(n,MS.length); if(n>0) history.go(-n); }
+function closeAll(){ closeM(MS.length); }
+function onClose(id){ if(id==='mAsk'&&askRes){ const r=askRes; askRes=null; r(-1); } }
+document.addEventListener('click',e=>{ const c=e.target.closest('[data-close]'); if(c) closeM(); const m=e.target.classList&&e.target.classList.contains('modal')?e.target:null; if(m&&MS[MS.length-1]===m.id) closeM(); });
+let askRes=null;
+function ask(msg,btns){ return new Promise(res=>{ $('aMsg').textContent=msg; $('aBtns').innerHTML=btns.map((b,i)=>`<button class="btn wide ${b[1]||''}" data-i="${i}">${esc(b[0])}</button>`).join(''); askRes=res; openM('mAsk'); }); }
+$('aBtns').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; const r=askRes; askRes=null; closeM(); r&&r(+b.dataset.i); });
+let toastT=null; function toast(t){ const el=$('toast'); el.textContent=t; el.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('on'),2600); }
+
+/* ---------- tela principal ---------- */
+const now=new Date(); let VY=now.getFullYear(), VM=now.getMonth();
+function shiftMonth(d){ VM+=d; if(VM<0){VM=11;VY--;} if(VM>11){VM=0;VY++;} render(); scrollTo({top:0}); }
+$('mPrev').onclick=()=>shiftMonth(-1); $('mNext').onclick=()=>shiftMonth(1);
+
+function calHTML(y,m,opts){
+  const first=new Date(y,m,1).getDay(), n=dim(y,m), td=today(); let h='';
+  h+=WDS.map((w,i)=>opts.wdClick?`<button class="wh" data-wd="${i}">${w}</button>`:`<div class="wh">${w}</div>`).join('');
+  for(let i=0;i<first;i++) h+='<div class="d x"></div>';
+  for(let d=1;d<=n;d++){ const ds=iso(y,m,d), c=S.it.filter(x=>x.date===ds).length;
+    const cls=['d']; if(opts.counts&&c) cls.push('has'); if(ds<td) cls.push('past'); if(ds===td) cls.push('today'); if(opts.sel&&opts.sel.has(ds)) cls.push('sel');
+    h+=`<button class="${cls.join(' ')}" data-d="${ds}">${d}${opts.counts&&c?`<span class="c">${c>1?c+' saídas':'1 saída'}</span>`:''}</button>`; }
+  return h; }
+function slotHTML(x){ const tt=terrTxt(x.terr), g=grpTxt(x.grp);
+  const dr=[x.dir?esc(x.dir):'<em>Dirigente a definir</em>', g?esc(g):''].filter(Boolean).join(' · ');
+  return `<button class="slot" data-id="${x.id}"><span class="time">${esc(x.time||'—')}</span><span class="pl">${esc(x.loc||'Local a definir')}</span><span class="dr">${dr}</span>${tt?`<span class="tg">${tt}</span>`:'<span class="tg none">sem terr.</span>'}${x.obs?`<span class="ob">${esc(x.obs)}</span>`:''}</button>`; }
+function dayHTML(ds,items){ const dt=pd(ds); return `<div class="day"><div class="dh"><span class="n">${pad(dt.getDate())}</span><span class="wd">${WD[dt.getDay()]}</span><span class="mo">${pad(dt.getDate())}/${pad(dt.getMonth()+1)}</span><span class="cnt">${items.length>1?items.length+' saídas':'1 saída'}</span><button class="plus" data-add="${ds}" aria-label="Outra saída neste dia">${ICON.plus}</button></div>${items.map(slotHTML).join('')}</div>`; }
+
+let renderT=null;
+function render(){ cancelAnimationFrame(renderT); renderT=requestAnimationFrame(renderNow); }
+function renderNow(){
+  if(!progRef) return;
+  $('mLabel').textContent=cap(monthName(VY,VM));
+  $('congEyebrow').textContent=S.cfg.cong||'Campo';
+  $('cal').innerHTML=calHTML(VY,VM,{counts:true});
+  const pre=iso(VY,VM,1).slice(0,7), its=S.it.filter(x=>x.date.startsWith(pre)), days=[...new Set(its.map(x=>x.date))].sort();
+  const tot=its.length, semDir=its.filter(x=>!x.dir).length;
+  $('mSummary').textContent=tot?`${tot} ${tot>1?'saídas':'saída'} em ${days.length} ${days.length>1?'dias':'dia'}${semDir?` · ${semDir} sem dirigente`:''}`:'Nenhuma saída neste mês ainda';
+  if(!days.length){ $('list').innerHTML=`<div class="card empty"><b>${cap(MES[VM])} está vazio</b>Toque em <strong>Nova saída</strong> ou num dia do calendário.${S.fix.length?'<br>Ou preencha o mês com as saídas fixas:<div style="margin-top:12px"><button class="btn primary" id="emptyFix">Preencher com saídas fixas</button></div>':''}</div>`; const b=$('emptyFix'); if(b) b.onclick=()=>applyFix(); return; }
+  let h='', lastWeek=null;
+  days.forEach(ds=>{ const dt=pd(ds); const wk=Math.floor((dt.getDate()-1+new Date(VY,VM,1).getDay())/7);
+    if(wk!==lastWeek){ lastWeek=wk; const s=new Date(dt); s.setDate(dt.getDate()-dt.getDay()); const e=new Date(s); e.setDate(s.getDate()+6);
+      const a=s.getMonth()===VM?s.getDate():1, b=e.getMonth()===VM?e.getDate():dim(VY,VM);
+      const cnt=days.filter(x=>{ const d=pd(x).getDate(); return d>=a&&d<=b; }).reduce((t,x)=>t+itemsOn(x).length,0);
+      h+=`<div class="gsep"><h2>${pad(a)} a ${pad(b)} de ${MES[VM]}</h2><span class="l"></span><span class="c">${cnt} ${cnt>1?'saídas':'saída'}</span></div>`; }
+    h+=dayHTML(ds,itemsOn(ds)); });
+  $('list').innerHTML=h;
+}
+$('cal').addEventListener('click',e=>{ const b=e.target.closest('button.d'); if(!b) return; const ds=b.dataset.d;
+  if(itemsOn(ds).length){ const el=document.querySelector(`[data-add="${ds}"]`); if(el){ const day=el.closest('.day'); scrollTo({top:day.getBoundingClientRect().top+scrollY-74,behavior:'smooth'}); day.animate([{boxShadow:'0 0 0 3px var(--acc)'},{boxShadow:'var(--sh)'}],{duration:1400}); } }
+  else openEdit(null,[ds]); });
+$('list').addEventListener('click',e=>{ const a=e.target.closest('[data-add]'); if(a){ openEdit(null,[a.dataset.add]); return; } const s=e.target.closest('.slot[data-id]'); if(s) openEdit(s.dataset.id); });
+$('btnNew').onclick=()=>openEdit(null,[]);
+
+/* ---------- seletores (chips) ---------- */
+function picker(el,cfg){
+  let adding=false;
+  function draw(){ const v=cfg.get(), sel=cfg.multi?new Set(v):new Set(v?[v]:[]);
+    const extra=[...sel].filter(x=>!S[cfg.list].includes(x));
+    const names=[...S[cfg.list],...extra];
+    el.innerHTML=names.map(n=>`<button type="button" data-v="${esc(n)}" aria-pressed="${sel.has(n)}">${esc(n)}</button>`).join('')+(adding?'':`<button type="button" class="add" data-add="1">+ ${esc(cfg.addLabel)}</button>`)+
+      (adding?`<div class="addrow" style="flex-basis:100%"><input placeholder="${esc(cfg.ph||'Nome')}" enterkeyhint="done"><button type="button" class="btn primary sm" data-ok="1">Incluir</button><button type="button" class="btn sm" data-cancel="1">${ICON.x}</button></div>`:'');
+    if(adding){ const i=el.querySelector('input'); setTimeout(()=>i.focus(),30); i.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); ok(); } }); } }
+  function ok(){ const i=el.querySelector('.addrow input'); const n=addTo(cfg.list,i&&i.value); adding=false; if(n){ if(cfg.multi){ const v=new Set(cfg.get()); v.add(n); cfg.set([...v]); } else cfg.set(n); } draw(); }
+  el.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.add){ adding=true; draw(); return; } if(b.dataset.ok){ ok(); return; } if(b.dataset.cancel){ adding=false; draw(); return; }
+    const n=b.dataset.v; if(n==null) return;
+    if(cfg.multi){ const v=new Set(cfg.get()); v.has(n)?v.delete(n):v.add(n); cfg.set([...v]); } else cfg.set(cfg.get()===n?'':n);
+    draw(); });
+  return {draw,reset(){ adding=false; draw(); }};
+}
+
+/* ---------- incluir / editar saída ---------- */
+let E=null;
+const pE={loc:picker($('eLoc'),{list:'loc',multi:false,get:()=>E.loc,set:v=>E.loc=v,addLabel:'novo local',ph:'Nome do local'}),
+          dir:picker($('eDir'),{list:'dir',multi:false,get:()=>E.dir,set:v=>E.dir=v,addLabel:'novo dirigente',ph:'Nome do dirigente'}),
+          grp:picker($('eGrp'),{list:'grp',multi:true,get:()=>E.grp,set:v=>E.grp=v,addLabel:'novo grupo',ph:'Ex.: Grupo 1'})};
+function openEdit(id,dates){
+  const x=id?S.it.find(i=>i.id===id):null;
+  E=x?{id:x.id,dates:new Set([x.date]),time:x.time||'',loc:x.loc||'',dir:x.dir||'',terr:new Set(arr(x.terr).map(Number)),grp:arr(x.grp).slice(),obs:x.obs||''}
+     :{id:null,dates:new Set(dates||[]),time:'',loc:S.loc.length===1?S.loc[0]:'',dir:'',terr:new Set(),grp:[],obs:''};
+  const base=(E.dates.size?pd([...E.dates][0]):new Date(VY,VM,1)); E.cy=base.getFullYear(); E.cm=base.getMonth();
+  $('eTitle').textContent=x?'Editar saída':'Nova saída';
+  show('eMore',!!x);
+  $('eCalNote').textContent=x?'Toque em outro dia para mudar a data desta saída.':'Toque em vários dias para repetir a mesma saída. Tocar no nome do dia (SÁB, DOM…) marca todos daquele dia no mês.';
+  $('eTime').value=E.time; $('eObs').value=E.obs;
+  drawECal(); drawTimes(); drawTerr(); pE.loc.reset(); pE.dir.reset(); pE.grp.reset();
+  openM('mEdit'); $('mEdit').querySelector('.box').scrollTop=0;
+}
+function drawECal(){ $('eCalLabel').textContent=cap(monthName(E.cy,E.cm)); $('eCal').innerHTML=calHTML(E.cy,E.cm,{sel:E.dates,wdClick:!E.id});
+  const d=[...E.dates].sort(); $('eDatesTxt').textContent=!d.length?'nenhuma selecionada':d.length===1?fmtLong(d[0]):d.length+' datas: '+d.map(s=>{const t=pd(s);return pad(t.getDate())+'/'+pad(t.getMonth()+1);}).join(', '); }
+function fmtLong(s){ const t=pd(s); return WDL[t.getDay()]+', '+pad(t.getDate())+'/'+pad(t.getMonth()+1)+'/'+t.getFullYear(); }
+$('eCalPrev').onclick=()=>{ E.cm--; if(E.cm<0){E.cm=11;E.cy--;} drawECal(); };
+$('eCalNext').onclick=()=>{ E.cm++; if(E.cm>11){E.cm=0;E.cy++;} drawECal(); };
+$('eCal').addEventListener('click',e=>{ const w=e.target.closest('[data-wd]');
+  if(w){ const wd=+w.dataset.wd, n=dim(E.cy,E.cm), all=[]; for(let d=1;d<=n;d++) if(new Date(E.cy,E.cm,d).getDay()===wd) all.push(iso(E.cy,E.cm,d));
+    const on=all.every(d=>E.dates.has(d)); all.forEach(d=>on?E.dates.delete(d):E.dates.add(d)); drawECal(); return; }
+  const b=e.target.closest('button.d'); if(!b) return; const ds=b.dataset.d;
+  if(E.id){ E.dates=new Set([ds]); } else { E.dates.has(ds)?E.dates.delete(ds):E.dates.add(ds); } drawECal(); });
+function drawTimes(){ const freq={}; S.it.forEach(x=>{ if(x.time) freq[x.time]=(freq[x.time]||0)+1; }); S.fix.forEach(f=>{ if(f.time) freq[f.time]=(freq[f.time]||0)+3; });
+  const t=Object.keys(freq).sort((a,b)=>freq[b]-freq[a]).slice(0,6).sort();
+  $('eTimes').innerHTML=t.map(x=>`<button type="button" data-v="${x}" aria-pressed="${E.time===x}">${x}</button>`).join('');
+  show('eTimes',t.length>0); }
+$('eTimes').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; E.time=b.dataset.v; $('eTime').value=E.time; drawTimes(); });
+$('eTime').addEventListener('input',()=>{ E.time=$('eTime').value; drawTimes(); });
+function drawTerr(){ const n=Math.max(1,Math.min(500,+S.cfg.nTerr||58)); let h=''; for(let i=1;i<=n;i++) h+=`<button type="button" data-t="${i}" aria-pressed="${E.terr.has(i)}">${pad(i)}</button>`;
+  $('eTerr').innerHTML=h; $('eTerrTxt').textContent=E.terr.size?terrTxt([...E.terr]):'opcional · pode marcar mais de um'; }
+$('eTerr').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; const t=+b.dataset.t; E.terr.has(t)?E.terr.delete(t):E.terr.add(t); b.setAttribute('aria-pressed',String(E.terr.has(t))); $('eTerrTxt').textContent=E.terr.size?terrTxt([...E.terr]):'opcional · pode marcar mais de um'; });
+$('eObs').addEventListener('input',()=>{ E.obs=$('eObs').value; });
+$('eSave').onclick=()=>{
+  E.time=$('eTime').value; E.obs=$('eObs').value.trim();
+  if(!E.dates.size){ toast('Escolha pelo menos uma data'); return; }
+  if(!E.time){ toast('Informe o horário'); $('eTime').focus(); return; }
+  const data={time:E.time,loc:E.loc,dir:E.dir,terr:[...E.terr].sort((a,b)=>a-b),grp:E.grp.slice().sort(byName),obs:E.obs};
+  if(E.id){ putItem(Object.assign({id:E.id,date:[...E.dates][0]},data)); toast('Saída atualizada'); }
+  else { putItems([...E.dates].map(d=>Object.assign({id:uid(),date:d},data))); toast(E.dates.size>1?E.dates.size+' saídas incluídas':'Saída incluída'); }
+  const f=pd([...E.dates].sort()[0]); if(f.getFullYear()!==VY||f.getMonth()!==VM){ VY=f.getFullYear(); VM=f.getMonth(); }
+  render(); closeM();
+};
+$('eDel').onclick=async()=>{ const x=S.it.find(i=>i.id===E.id); if(!x) return;
+  const r=await ask(`Excluir a saída de ${fmtLong(x.date)} às ${x.time}?`,[['Excluir','danger'],['Cancelar','']]); if(r!==0) return;
+  delItems([E.id]); closeM(); toast('Saída excluída'); };
+$('eDup').onclick=()=>{
+  E.id=null; E.dates=new Set(); $('eTitle').textContent='Repetir saída'; show('eMore',false);
+  $('eCalNote').textContent='Marque as datas em que esta mesma saída vai se repetir.'; drawECal(); $('mEdit').querySelector('.box').scrollTop=0; toast('Marque as novas datas'); };
+
+/* ---------- saídas fixas ---------- */
+let F={wd:6,time:'',loc:'',grp:[],dir:''};
+const pF={loc:picker($('fLoc'),{list:'loc',multi:false,get:()=>F.loc,set:v=>F.loc=v,addLabel:'novo local',ph:'Nome do local'}),
+          grp:picker($('fGrp'),{list:'grp',multi:true,get:()=>F.grp,set:v=>F.grp=v,addLabel:'novo grupo',ph:'Ex.: Grupo 1'}),
+          dir:picker($('fDir'),{list:'dir',multi:false,get:()=>F.dir,set:v=>F.dir=v,addLabel:'novo dirigente',ph:'Nome do dirigente'})};
+function drawFix(){
+  const L=S.fix.slice().sort((a,b)=>((a.wd+6)%7)-((b.wd+6)%7)||(a.time||'').localeCompare(b.time||''));
+  $('fList').innerHTML=L.length?L.map(f=>`<div class="fixrow"><div class="bd"><b>${WDL[f.wd]} · ${esc(f.time)}</b><small>${esc([f.loc||'Local a definir',grpTxt(f.grp),f.dir].filter(Boolean).join(' · '))}</small></div><button data-del="${esc(f.id)}" aria-label="Excluir">${ICON.trash}</button></div>`).join(''):'<p class="note" style="text-align:left;margin:0 0 8px">Nenhuma saída fixa ainda. Cadastre abaixo.</p>';
+  $('fApply').textContent='Preencher '+monthName(VY,VM)+' com as saídas fixas'; $('fApply').disabled=!S.fix.length;
+  $('fWd').innerHTML=[1,2,3,4,5,6,0].map(i=>`<button type="button" data-wd="${i}" aria-pressed="${F.wd===i}">${WDS[i][0]+WDS[i].slice(1).toLowerCase()}</button>`).join('');
+}
+$('btnFix').onclick=()=>{ F={wd:6,time:'',loc:S.loc.length===1?S.loc[0]:'',grp:[],dir:''}; $('fTime').value=''; drawFix(); pF.loc.reset(); pF.grp.reset(); pF.dir.reset(); openM('mFix'); };
+$('fWd').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; F.wd=+b.dataset.wd; drawFix(); });
+$('fList').addEventListener('click',e=>{ const b=e.target.closest('[data-del]'); if(!b) return; const f=S.fix.find(x=>x.id===b.dataset.del); if(!f) return; S.fix=S.fix.filter(x=>x!==f); meta({fix:FV.arrayRemove(f)}); drawFix(); });
+$('fAdd').onclick=()=>{ F.time=$('fTime').value; if(!F.time){ toast('Informe o horário'); return; }
+  const f=clean({id:uid(),wd:F.wd,time:F.time,loc:F.loc,grp:F.grp.slice().sort(byName),dir:F.dir}); S.fix.push(f); meta({fix:FV.arrayUnion(f)});
+  F={wd:F.wd,time:'',loc:F.loc,grp:[],dir:''}; $('fTime').value=''; drawFix(); pF.grp.reset(); pF.dir.reset(); toast('Saída fixa cadastrada'); $('mFix').querySelector('.box').scrollTop=0; };
+async function applyFix(){
+  if(!S.fix.length){ toast('Cadastre as saídas fixas primeiro'); return; }
+  const n=dim(VY,VM), td=today(), add=[]; let skip=0;
+  for(let d=1;d<=n;d++){ const ds=iso(VY,VM,d); if(ds<td) continue; const wd=new Date(VY,VM,d).getDay();
+    S.fix.filter(f=>f.wd===wd).forEach(f=>{ if(S.it.some(x=>x.date===ds&&x.time===f.time&&(x.loc||'')===(f.loc||''))||add.some(x=>x.date===ds&&x.time===f.time&&x.loc===(f.loc||''))){ skip++; return; }
+      add.push({id:uid(),date:ds,time:f.time,loc:f.loc||'',dir:f.dir||'',terr:[],grp:arr(f.grp).slice(),obs:''}); }); }
+  if(add.length) putItems(add); if(MS.includes('mFix')) closeM();
+  toast(add.length?`${add.length} ${add.length>1?'saídas incluídas':'saída incluída'}${skip?` · ${skip} já existia${skip>1?'m':''}`:''}`:'Nada a incluir: o mês já tem essas saídas'); }
+$('fApply').onclick=applyFix;
+
+/* ---------- ajustes ---------- */
+function cfgList(el,list){ el.innerHTML=S[list].map((n,i)=>`<button type="button" class="rm" data-i="${i}">${esc(n)} ${ICON.x}</button>`).join('')+`<div class="addrow" style="flex-basis:100%;margin-top:4px"><input placeholder="Incluir…" enterkeyhint="done"><button type="button" class="btn primary sm" data-ok="1">Incluir</button></div>`;
+  const i=el.querySelector('input'); i.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); addTo(list,i.value); cfgList(el,list); el.querySelector('input').focus(); } }); }
+[['cDir','dir'],['cLoc','loc'],['cGrp','grp']].forEach(([id,list])=>{ $(id).addEventListener('click',async e=>{ const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.ok){ addTo(list,$(id).querySelector('input').value); cfgList($(id),list); return; }
+  const n=S[list][+b.dataset.i]; if(n==null) return;
+  if(await ask(`Remover "${n}" da lista? As saídas já marcadas continuam com esse nome.`,[['Remover','danger'],['Cancelar','']])!==0) return;
+  removeFrom(list,n); cfgList($(id),list); }); });
+function markSeg(el,v){ [...el.children].forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===v))); }
+function fillCfg(){
+  const a=document.activeElement;
+  if(a!==$('cCong')) $('cCong').value=S.cfg.cong; if(a!==$('cCity')) $('cCity').value=S.cfg.city; if(a!==$('cN')) $('cN').value=S.cfg.nTerr;
+  markSeg($('cTheme'),P.theme);
+  if(!$('cDir').contains(a)) cfgList($('cDir'),'dir'); if(!$('cLoc').contains(a)) cfgList($('cLoc'),'loc'); if(!$('cGrp').contains(a)) cfgList($('cGrp'),'grp');
+  // pessoas com acesso
+  const own=isOwner();
+  $('cEd').innerHTML=(S.ownerEmail?`<span class="who">${esc(S.ownerEmail)} <i>responsável</i></span>`:'')+S.editores.map(m=>own?`<button type="button" class="rm" data-em="${esc(m)}">${esc(m)} ${ICON.x}</button>`:`<span class="who">${esc(m)}</span>`).join('')+
+    (own&&!$('cEd').contains(a)?`<div class="addrow" style="flex-basis:100%;margin-top:4px"><input type="email" placeholder="E-mail da pessoa" enterkeyhint="done" autocomplete="off"><button type="button" class="btn primary sm" data-ok="1">Dar acesso</button></div>`:'');
+  if(own){ const i=$('cEd').querySelector('input'); if(i) i.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); addEditor(i.value); } }); }
+  $('cEdNote').textContent=own?'Quem você incluir entra com esse e-mail (conta Google ou e-mail e senha) e vê e edita a mesma programação. Pelo e-mail e senha, a pessoa precisa confirmar o e-mail na primeira vez.':'Só o responsável pode incluir ou remover pessoas.';
+  $('cAcc').innerHTML=`Conectado como <b>${esc(user&&user.email||'')}</b> · ${own?'responsável':'acesso compartilhado'}`;
+  $('cClear').innerHTML=ICON.trash+'Apagar as saídas de '+monthName(VY,VM);
+}
+async function addEditor(v){ const em=String(v||'').trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){ toast('E-mail inválido'); return; }
+  if(em===S.ownerEmail||S.editores.includes(em)){ toast('Este e-mail já tem acesso'); return; }
+  try{ await db.collection('acesso').doc(em).set({prog:PID,nome:S.cfg.cong||'',por:myEmail(),ts:Date.now()}); }
+  catch(e){ toast(e.code==='permission-denied'?'Este e-mail já tem acesso à programação de outra conta':'Não foi possível dar acesso: '+(e.code||'erro')); return; }
+  S.editores.push(em); S.editores.sort(byName); meta({editores:FV.arrayUnion(em)}); const i=$('cEd').querySelector('input'); if(i) i.value=''; fillCfg(); toast('Acesso liberado para '+em); }
+$('cEd').addEventListener('click',async e=>{ const b=e.target.closest('button'); if(!b||!isOwner()) return;
+  if(b.dataset.ok){ addEditor($('cEd').querySelector('input').value); return; }
+  const em=b.dataset.em; if(!em) return;
+  if(await ask(`Tirar o acesso de ${em}?`,[['Tirar acesso','danger'],['Cancelar','']])!==0) return;
+  S.editores=S.editores.filter(x=>x!==em); meta({editores:FV.arrayRemove(em)}); db.collection('acesso').doc(em).delete().catch(()=>{}); fillCfg(); toast('Acesso removido'); });
+$('btnCfg').onclick=()=>{ fillCfg(); openM('mCfg'); };
+let cfgT=null; function cfgField(k,v){ S.cfg[k]=v; clearTimeout(cfgT); cfgT=setTimeout(()=>meta({['cfg.'+k]:v}),600); render(); }
+$('cCong').addEventListener('input',()=>cfgField('cong',$('cCong').value.trim()));
+$('cCity').addEventListener('input',()=>cfgField('city',$('cCity').value.trim()));
+$('cN').addEventListener('change',()=>{ const n=Math.max(1,Math.min(500,parseInt($('cN').value)||58)); $('cN').value=n; cfgField('nTerr',n); });
+$('cTheme').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; P.theme=b.dataset.v; savePrefs(); markSeg($('cTheme'),P.theme); applyTheme(); });
+$('cNT').onclick=async()=>{ const nt=await readNossoTerritorio(); if(!nt){ toast('Esta conta não tem dados do Nosso Território'); return; }
+  let n=0; nt.dir.forEach(x=>{ if(!S.dir.some(y=>y.toLowerCase()===x.toLowerCase())){ addTo('dir',x); n++; } }); nt.loc.forEach(x=>{ if(!S.loc.some(y=>y.toLowerCase()===x.toLowerCase())){ addTo('loc',x); n++; } });
+  if(!S.cfg.cong&&nt.cong) cfgField('cong',nt.cong); fillCfg(); toast(n?n+' nomes trazidos do Nosso Território':'Nada novo para trazer'); };
+$('cOut').onclick=async()=>{ if(await ask('Sair da sua conta neste aparelho?',[['Sair','danger'],['Cancelar','']])!==0) return; try{ localStorage.removeItem('pc_prog_'+user.uid); }catch(e){} auth.signOut(); };
+$('cExp').onclick=()=>{ const data={v:1,cfg:S.cfg,dir:S.dir,loc:S.loc,grp:S.grp,fix:S.fix,it:S.it};
+  download(new Blob([JSON.stringify(data,null,1)],{type:'application/json'}),'programacao-campo-backup-'+today()+'.json'); toast('Backup exportado'); };
+$('cImp').onclick=()=>$('cFile').click();
+$('cFile').addEventListener('change',async()=>{ const f=$('cFile').files[0]; $('cFile').value=''; if(!f) return;
+  let d=null; try{ d=JSON.parse(await f.text()); }catch(e){} if(!d||!Array.isArray(d.it)){ toast('Arquivo de backup inválido'); return; }
+  const r=await ask(`Este backup tem ${d.it.length} saídas. Como importar?`,[['Juntar com as atuais',''],['Substituir tudo','danger'],['Cancelar','']]); if(r!==0&&r!==1) return;
+  const inc=d.it.filter(x=>x&&x.date).map(x=>Object.assign({},x,{id:x.id||uid()}));
+  if(r===1){ await delItems(S.it.map(x=>x.id)); await meta({dir:arr(d.dir),loc:arr(d.loc),grp:arr(d.grp),fix:clean(arr(d.fix)),cfg:Object.assign({},CFG0,clean(d.cfg||{}),{theme:undefined,img:undefined})}); await putItems(inc); }
+  else { const ids=new Set(S.it.map(x=>x.id)); await putItems(inc.filter(x=>!ids.has(x.id))); ['dir','loc','grp'].forEach(l=>arr(d[l]).forEach(n=>addTo(l,n))); const fids=new Set(S.fix.map(x=>x.id)); const nf=clean(arr(d.fix).filter(x=>x&&!fids.has(x.id))); if(nf.length) meta({fix:FV.arrayUnion(...nf)}); }
+  closeM(); toast('Backup importado'); });
+$('cClear').onclick=async()=>{ const pre=iso(VY,VM,1).slice(0,7), ids=S.it.filter(x=>x.date.startsWith(pre)).map(x=>x.id); if(!ids.length){ toast('Este mês não tem saídas'); return; }
+  if(await ask(`Apagar as ${ids.length} saídas de ${monthName(VY,VM)}? Isso apaga para todos que têm acesso e não pode ser desfeito.`,[['Apagar','danger'],['Cancelar','']])!==0) return;
+  delItems(ids); closeM(); toast('Saídas do mês apagadas'); };
+
+/* ---------- imagem: tabela compacta, 1 ou 2 páginas ---------- */
+let imgFiles=[], imgSeq=0;
+function monthDays(){ const n=dim(VY,VM), r=[]; for(let d=1;d<=n;d++){ const ds=iso(VY,VM,d), it=itemsOn(ds); if(it.length) r.push([ds,it]); } return r; }
+const weekOf=ds=>{ const t=pd(ds); return Math.floor((t.getDate()-1+new Date(t.getFullYear(),t.getMonth(),1).getDay())/7); };
+function splitPages(days,n){ if(n<2||days.length<2) return [days];
+  const w=days.map(([,it])=>it.length+it.filter(x=>x.obs).length*.5), tot=w.reduce((a,b)=>a+b,0); let best=1,bs=1e9,acc=0;
+  for(let i=1;i<days.length;i++){ acc+=w[i-1]; const sc=Math.abs(acc-tot/2)+(weekOf(days[i][0])!==weekOf(days[i-1][0])?0:2.5); if(sc<bs){ bs=sc; best=i; } }
+  return [days.slice(0,best),days.slice(best)]; }
+function pageHTML(days,pi,pn){
+  const useG=days.some(([,it])=>it.some(x=>arr(x.grp).length)), useT=days.some(([,it])=>it.some(x=>arr(x.terr).length));
+  const cg=(S.cfg.cong||'').trim(), ct=(S.cfg.city||'').trim();
+  const eb=esc(cg&&ct&&cg.toLowerCase().includes(ct.toLowerCase())?cg:[cg,ct].filter(Boolean).join(' · '))||'Campo';
+  const a=pd(days[0][0]).getDate(), b=pd(days[days.length-1][0]).getDate();
+  const ncol=4+(useT?1:0)+(useG?1:0); let rows='', prevW=null;
+  days.forEach(([ds,it])=>{ const t=pd(ds), wk=weekOf(ds);
+    rows+=`<tbody class="sp${prevW!==null&&wk!==prevW?' w':''}"><tr><td colspan="${ncol}"></td></tr></tbody>`; prevW=wk;
+    rows+=`<tbody class="dy">`+it.map((x,j)=>`<tr>${j===0?`<td class="dt" rowspan="${it.length}"><b>${pad(t.getDate())}</b><span>${WDS[t.getDay()]}</span></td>`:''}<td class="h">${esc(x.time)}</td><td class="l">${esc(x.loc||'A definir')}${x.obs?`<i>${esc(x.obs)}</i>`:''}</td><td class="d">${x.dir?esc(x.dir):'<em>a definir</em>'}</td>${useT?`<td class="t">${arr(x.terr).map(Number).sort((p,q)=>p-q).map(pad).join(', ')}</td>`:''}${useG?`<td class="g">${esc(grpTxt(x.grp).replace(/Grupo /gi,'G'))}</td>`:''}</tr>`).join('')+'</tbody>'; });
+  const n_=new Date();
+  return `<div class="pz th-${P.img.th}"><div class="hd"><div class="logo">T</div><div><div class="eb">${eb}</div><h1>Programação de Campo</h1></div><div class="mes"><b>${cap(MES[VM])} ${VY}</b>${pn>1?`<span>dias ${pad(a)} a ${pad(b)} · ${pi+1}/${pn}</span>`:''}</div></div>
+  <table><thead><tr><th>Dia</th><th>Hora</th><th>Local</th><th>Dirigente</th>${useT?'<th>Terr.</th>':''}${useG?'<th>Grupos</th>':''}</tr></thead>${rows}</table>
+  <div class="ft"><span>${pn>1?`Página ${pi+1} de ${pn}`:''}</span><span>Atualizado em ${pad(n_.getDate())}/${pad(n_.getMonth()+1)}/${n_.getFullYear()}</span></div></div>`; }
+function needH2C(){ if(window.html2canvas) return Promise.resolve(); return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'; s.onload=()=>res(); s.onerror=()=>rej(new Error('net')); document.head.appendChild(s); }); }
+async function buildImg(){
+  const seq=++imgSeq; imgFiles=[]; $('iShare').disabled=$('iDown').disabled=true;
+  $('iPrev').innerHTML='<p>gerando a imagem…</p>';
+  const days=monthDays(), pages=splitPages(days,P.img.pages==='2'?2:1), stage=$('stage');
+  try{
+    await needH2C(); if(document.fonts){ await Promise.all(["700 30px Caveat","800 13px Manrope","700 13px Manrope","600 13px Manrope"].map(f=>document.fonts.load(f))).catch(()=>{}); await document.fonts.ready; }
+    const out=[];
+    for(let i=0;i<pages.length;i++){
+      stage.innerHTML=pageHTML(pages[i],i,pages.length); const el=stage.firstElementChild;
+      const c=await html2canvas(el,{scale:2,backgroundColor:getComputedStyle(el).backgroundColor,logging:false,windowWidth:el.scrollWidth+40});
+      const blob=await new Promise(r=>c.toBlob(r,'image/png')); if(seq!==imgSeq) return;
+      out.push(new File([blob],'programacao-campo-'+VY+'-'+pad(VM+1)+(pages.length>1?'-p'+(i+1):'')+'.png',{type:'image/png'})); }
+    imgFiles=out; $('iPrev').innerHTML=out.map((f,i)=>`<img alt="Página ${i+1}" src="${URL.createObjectURL(f)}">`).join('');
+    $('iShareTxt').textContent=out.length>1?'Compartilhar as 2 imagens':'Compartilhar imagem';
+    $('iShare').disabled=$('iDown').disabled=false;
+  }catch(e){ if(seq===imgSeq) $('iPrev').innerHTML='<p>Não foi possível gerar a imagem. Verifique a internet (na primeira vez o gerador de imagem precisa ser baixado) e tente de novo.</p>'; }
+  finally{ if(seq===imgSeq) stage.innerHTML=''; }
+}
+$('btnImg').onclick=()=>{ const days=monthDays(); if(!days.length){ toast('Inclua saídas neste mês primeiro'); return; }
+  const n=days.reduce((t,[,it])=>t+it.length,0); $('iInfo').textContent=`${n} ${n>1?'saídas':'saída'} em ${days.length} ${days.length>1?'dias':'dia'}`;
+  if(!P.img.pages){ P.img.pages=n>34?'2':'1'; }
+  markSeg($('iPg'),P.img.pages); markSeg($('iTh'),P.img.th); openM('mImg'); buildImg(); };
+[['iPg','pages'],['iTh','th']].forEach(([id,k])=>$(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b||P.img[k]===b.dataset.v) return; P.img[k]=b.dataset.v; savePrefs(); markSeg($(id),b.dataset.v); buildImg(); }));
+function download(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1500); }
+$('iDown').onclick=()=>{ imgFiles.forEach((f,i)=>setTimeout(()=>download(f,f.name),i*600)); if(imgFiles.length) toast(imgFiles.length>1?'Imagens salvas':'Imagem salva'); };
+$('iShare').onclick=async()=>{ if(!imgFiles.length) return;
+  if(navigator.canShare&&navigator.canShare({files:imgFiles})){ try{ await navigator.share({files:imgFiles,title:'Programação de Campo'}); }catch(e){} }
+  else { $('iDown').onclick(); toast('Compartilhar não está disponível aqui: as imagens foram baixadas'); } };
+$('iText').onclick=async()=>{
+  let t=`*Programação de Campo — ${cap(monthName(VY,VM))}*\n${S.cfg.cong?'_'+S.cfg.cong+'_\n':''}`;
+  monthDays().forEach(([d,it])=>{ const dt=pd(d); t+=`\n*${WDL[dt.getDay()]}, ${pad(dt.getDate())}/${pad(dt.getMonth()+1)}*\n`;
+    it.forEach(x=>{ const det=[x.dir||'dirigente a definir',terrTxt(x.terr),grpTxt(x.grp)].filter(Boolean).join(' · '); t+=`• ${x.time} — ${x.loc||'local a definir'} — ${det}${x.obs?` _(${x.obs})_`:''}\n`; }); });
+  try{ await navigator.clipboard.writeText(t.trim()); toast('Texto copiado — cole no WhatsApp'); }
+  catch(e){ const ta=document.createElement('textarea'); ta.value=t.trim(); document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); toast('Texto copiado — cole no WhatsApp'); }catch(_){ toast('Não foi possível copiar'); } ta.remove(); } };
+
+/* ---------- início ---------- */
+matchMedia('(prefers-color-scheme: dark)').addEventListener&&matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme);
+applyTheme();
+</script>
+</body>
+</html>
