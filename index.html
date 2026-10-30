@@ -148,6 +148,11 @@ button.slot:active{background:var(--surface2)}
 .pk button[aria-pressed="true"]{background:var(--acc);border-color:var(--acc);color:var(--acc-t)}
 .pk button.add{border-style:dashed;color:var(--acc);background:transparent}
 .pk .rm{display:inline-flex;align-items:center;gap:6px}
+.pk .nm{display:inline-flex;align-items:stretch;border:1px solid var(--line);background:var(--surface2);border-radius:999px;overflow:hidden}
+.pk .nm button{border:0;background:none;border-radius:0;padding:8px 4px 8px 13px;font-size:13.5px;font-weight:700;text-align:left}
+.pk .nm button:active{background:var(--line)}
+.pk .nm button.del{padding:8px 11px 8px 7px;color:var(--red);display:grid;place-items:center}
+.pk .nm button.del svg{width:13px;height:13px}
 .pk .rm svg{width:13px;height:13px;color:var(--red)}
 .addrow{display:flex;gap:6px;margin-top:8px}
 .addrow input{flex:1;min-width:0;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:9px 14px;font-size:15px;font-weight:600}
@@ -419,6 +424,15 @@ textarea.inp{resize:vertical;min-height:44px;font-weight:600;font-size:15px}
   <p class="acc" id="cSync"></p>
   <button class="btn" id="cOut"><svg class="i" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Sair da conta</button>
   <div class="mfoot"><button class="btn primary wide" data-close>Pronto</button></div>
+</div></section>
+
+<!-- ---------- editar nome (dirigente, local ou grupo) ---------- -->
+<section class="modal" id="mRen"><div class="box">
+  <div class="grab"></div>
+  <div class="mh"><h2 id="rTitle">Editar</h2><button class="x" data-close aria-label="Fechar"><svg class="i" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+  <label class="f"><span>Nome</span><input class="inp" id="rName" enterkeyhint="done" autocomplete="off"></label>
+  <p class="note" id="rUse" style="text-align:left;margin-top:8px"></p>
+  <div class="mfoot"><button class="btn primary wide" id="rSave">Salvar</button><div class="acts"><button class="btn danger" id="rDel"><svg class="i" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>Remover da lista</button></div></div>
 </div></section>
 
 <!-- ---------- confirmação ---------- -->
@@ -744,13 +758,42 @@ async function applyFix(){
 $('fApply').onclick=applyFix;
 
 /* ---------- ajustes ---------- */
-function cfgList(el,list){ el.innerHTML=S[list].map((n,i)=>`<button type="button" class="rm" data-i="${i}">${esc(n)} ${ICON.x}</button>`).join('')+`<div class="addrow" style="flex-basis:100%;margin-top:4px"><input placeholder="Incluir…" enterkeyhint="done"><button type="button" class="btn primary sm" data-ok="1">Incluir</button></div>`;
+function cfgList(el,list){ el.innerHTML=S[list].map((n,i)=>`<span class="nm"><button type="button" data-ed="${i}" title="Editar">${esc(n)}</button><button type="button" class="del" data-i="${i}" aria-label="Remover ${esc(n)}">${ICON.x}</button></span>`).join('')+`<div class="addrow" style="flex-basis:100%;margin-top:4px"><input placeholder="Incluir…" enterkeyhint="done"><button type="button" class="btn primary sm" data-ok="1">Incluir</button></div>`;
   const i=el.querySelector('input'); i.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); addTo(list,i.value); cfgList(el,list); el.querySelector('input').focus(); } }); }
 [['cDir','dir'],['cLoc','loc'],['cGrp','grp']].forEach(([id,list])=>{ $(id).addEventListener('click',async e=>{ const b=e.target.closest('button'); if(!b) return;
   if(b.dataset.ok){ addTo(list,$(id).querySelector('input').value); cfgList($(id),list); return; }
+  if(b.dataset.ed!=null){ openRen(list,S[list][+b.dataset.ed]); return; }
   const n=S[list][+b.dataset.i]; if(n==null) return;
   if(await ask(`Remover "${n}" da lista? As saídas já marcadas continuam com esse nome.`,[['Remover','danger'],['Cancelar','']])!==0) return;
   removeFrom(list,n); cfgList($(id),list); }); });
+/* editar nome: atualiza a lista, as saídas e as saídas fixas que usam o nome; se o novo nome já existe, junta os dois */
+const LISTN={dir:['dirigente','Editar dirigente'],loc:['local','Editar local'],grp:['grupo','Editar grupo']};
+let REN=null;
+const usesName=(list,x,n)=>list==='grp'?arr(x.grp).includes(n):(x[list]||'')===n;
+function swapName(list,x,a,b){ if(list==='grp') return Object.assign({},x,{grp:[...new Set(arr(x.grp).map(g=>g===a?b:g))].sort(byName)}); return Object.assign({},x,{[list]:b}); }
+function openRen(list,name){ if(name==null) return; REN={list,name};
+  const n=S.it.filter(x=>usesName(list,x,name)).length, f=S.fix.filter(x=>usesName(list,x,name)).length;
+  $('rTitle').textContent=LISTN[list][1]; $('rName').value=name;
+  $('rUse').textContent=(n||f)?`Usado em ${n} ${n===1?'saída':'saídas'}${f?` e ${f} ${f===1?'saída fixa':'saídas fixas'}`:''}. Ao salvar, todas passam a usar o novo nome.`:'Ainda não é usado em nenhuma saída.';
+  openM('mRen'); setTimeout(()=>{ $('rName').focus(); $('rName').select(); },60); }
+async function renameName(list,from,to){
+  const target=S[list].find(x=>x!==from&&x.toLowerCase()===to.toLowerCase())||to;
+  const its=S.it.filter(x=>usesName(list,x,from)).map(x=>swapName(list,x,from,target));
+  const fix=S.fix.map(x=>usesName(list,x,from)?swapName(list,x,from,target):x), fixChanged=S.fix.some(x=>usesName(list,x,from));
+  S[list]=[...new Set(S[list].map(x=>x===from?target:x))].sort(byName);
+  const upd={[list]:S[list].slice()}; if(fixChanged){ S.fix=fix; upd.fix=clean(fix); }
+  await meta(upd); if(its.length) await putItems(its);
+  return {merged:target!==to||(target===to&&S[list].filter(x=>x===to).length>1),n:its.length,target}; }
+$('rSave').onclick=async()=>{ if(!REN) return; const to=$('rName').value.trim().replace(/\s+/g,' ');
+  if(!to){ toast('Digite um nome'); return; } if(to===REN.name){ closeM(); return; }
+  const existed=S[REN.list].some(x=>x!==REN.name&&x.toLowerCase()===to.toLowerCase());
+  if(existed&&await ask(`"${S[REN.list].find(x=>x!==REN.name&&x.toLowerCase()===to.toLowerCase())}" já existe. Juntar "${REN.name}" com ele?`,[['Juntar',''],['Cancelar','']])!==0) return;
+  const {n,target}=await renameName(REN.list,REN.name,to);
+  closeM(); fillCfg(); toast((existed?'Juntado com '+target:'Nome atualizado')+(n?` · ${n} ${n===1?'saída atualizada':'saídas atualizadas'}`:'')); };
+$('rName').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); $('rSave').click(); } });
+$('rDel').onclick=async()=>{ if(!REN) return; const {list,name}=REN;
+  if(await ask(`Remover "${name}" da lista? As saídas já marcadas continuam com esse nome.`,[['Remover','danger'],['Cancelar','']])!==0) return;
+  removeFrom(list,name); closeM(); fillCfg(); toast('Removido da lista'); };
 function markSeg(el,v){ [...el.children].forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===v))); }
 function fillCfg(){
   const a=document.activeElement;
